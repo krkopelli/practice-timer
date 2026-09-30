@@ -96,6 +96,9 @@
     .cloud-grid{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
     .cloud-login{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .cloud-login input{flex:1;min-width:210px;border-radius:12px;border:1px solid var(--line);background:#111114;color:var(--text);padding:11px 12px;font-size:14px}
+    .password-login{margin-top:10px}
+    .password-setup{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+    .password-setup input{flex:1;min-width:180px;border-radius:12px;border:1px solid var(--line);background:#111114;color:var(--text);padding:11px 12px;font-size:14px}
     .link-login{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
     .link-login input{width:100%;border-radius:12px;border:1px solid var(--line);background:#111114;color:var(--text);padding:11px 12px;font-size:13px;margin:8px 0}
 
@@ -153,28 +156,42 @@
       <div class="badge">Supabase</div>
     </div>
     <div id="cloudLoggedOut">
-      <div class="cloud-login">
-        <input id="loginEmail" type="email" placeholder="输入邮箱；所有设备使用同一个邮箱">
-        <button id="sendMagicLink">发送登录链接</button>
+      <div class="small"><b>推荐：邮箱 + 密码登录</b>。不会发送邮件，也不会占用 Supabase 邮件额度。</div>
+      <div class="cloud-login password-login">
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="邮箱">
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
+        <button id="passwordLogin">登录</button>
       </div>
-      <div class="small">如果你是在 Safari 里使用，可以直接点邮件里的登录链接。</div>
 
       <div class="link-login">
-        <div class="small"><b>如果你是在“添加到主屏幕”的 App 里：</b><br>
-        收到邮件后不要直接点开。长按邮件里的登录按钮/链接 → 复制链接 → 回到这里粘贴，再点“在此设备登录”。</div>
+        <div class="small"><b>备用：Magic Link</b>（第一次建立账号或忘记密码时再用）</div>
+        <div class="cloud-login" style="margin-top:8px">
+          <button id="sendMagicLink" class="secondary">发送登录链接</button>
+        </div>
         <input id="pastedLoginLink" type="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-          placeholder="把 Supabase 登录链接粘贴到这里">
+          placeholder="主屏幕 App 可把邮件里的完整登录链接粘贴到这里">
         <div class="cloud-actions">
-          <button id="loginWithPastedLink">在此设备登录</button>
+          <button id="loginWithPastedLink" class="secondary">用粘贴链接登录</button>
           <button id="pasteLoginLink" class="secondary">从剪贴板粘贴</button>
         </div>
       </div>
     </div>
+
     <div id="cloudLoggedIn" class="hidden">
       <div class="cloud-actions">
         <button id="syncNow">立即保存到云端</button>
         <button class="secondary" id="reloadCloud">重新载入云端</button>
         <button class="secondary" id="signOut">退出登录</button>
+      </div>
+
+      <div class="password-setup">
+        <div class="small"><b>设置 / 修改登录密码</b><br>
+        只需要在一台已经登录的设备上设置一次。之后 iPhone、iPad 和主屏幕 App 都可以直接用邮箱 + 密码登录，不再发邮件。</div>
+        <div class="cloud-login" style="margin-top:8px">
+          <input id="newPassword" type="password" autocomplete="new-password" placeholder="新密码（至少 8 位）">
+          <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再输入一次">
+          <button id="setPassword">保存密码</button>
+        </div>
       </div>
     </div>
   </section>
@@ -833,6 +850,63 @@ async function loginFromPastedSupabaseLink(raw){
   throw new Error('没有在链接里找到可用的登录凭证。请确认你复制的是 Supabase 邮件里的登录链接，而且链接还没有过期。');
 }
 
+
+$('passwordLogin').onclick=async()=>{
+  const email=$('loginEmail').value.trim();
+  const password=$('loginPassword').value;
+  if(!email||!password){
+    $('cloudStamp').textContent='请输入邮箱和密码。';
+    return;
+  }
+  const btn=$('passwordLogin');
+  btn.disabled=true;
+  $('cloudStamp').textContent='正在登录…';
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    currentUser=data.user||data.session?.user||null;
+    renderAuth();
+    $('loginPassword').value='';
+    $('cloudStamp').textContent='登录成功，正在载入云端数据…';
+    await loadCloudState();
+  }catch(e){
+    $('cloudStamp').textContent=`登录失败：${e.message||e}`;
+  }finally{
+    btn.disabled=false;
+  }
+};
+
+$('setPassword').onclick=async()=>{
+  if(!currentUser){
+    $('cloudStamp').textContent='请先登录。';
+    return;
+  }
+  const password=$('newPassword').value;
+  const confirm=$('confirmPassword').value;
+  if(password.length<8){
+    $('cloudStamp').textContent='密码至少输入 8 位。';
+    return;
+  }
+  if(password!==confirm){
+    $('cloudStamp').textContent='两次输入的密码不一致。';
+    return;
+  }
+  const btn=$('setPassword');
+  btn.disabled=true;
+  $('cloudStamp').textContent='正在保存密码…';
+  try{
+    const {error}=await sb.auth.updateUser({password});
+    if(error) throw error;
+    $('newPassword').value='';
+    $('confirmPassword').value='';
+    $('cloudStamp').textContent='密码已保存。以后其他设备可直接用邮箱 + 密码登录。';
+  }catch(e){
+    $('cloudStamp').textContent=`密码保存失败：${e.message||e}`;
+  }finally{
+    btn.disabled=false;
+  }
+};
+
 $('sendMagicLink').onclick=async()=>{
   const email=$('loginEmail').value.trim();
   if(!email){$('cloudStamp').textContent='先输入邮箱。';return;}
@@ -843,7 +917,7 @@ $('sendMagicLink').onclick=async()=>{
   });
   $('cloudStamp').textContent=error
     ? `发送失败：${error.message}`
-    : '登录链接已发送。主屏幕 App 请复制邮件里的链接回来粘贴；Safari 可直接点开。';
+    : '备用登录链接已发送。Safari 可直接点开；主屏幕 App 可复制完整链接回来粘贴。';
 };
 
 $('pasteLoginLink').onclick=async()=>{
@@ -928,7 +1002,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.3';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.4';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
