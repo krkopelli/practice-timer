@@ -89,8 +89,40 @@
     .carry{color:#ffd8a8}
     .section-label{font-size:12px;color:var(--muted);margin:8px 0 2px;padding-top:4px}
     .completed-block{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+    .item-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+    .item-actions button{padding:6px 9px;border-radius:10px;font-size:12px;font-weight:700;background:var(--card2);color:var(--text);border:1px solid var(--line)}
+
+  
+    .cloud-grid{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+    .cloud-login{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .cloud-login input{flex:1;min-width:210px;border-radius:12px;border:1px solid var(--line);background:#111114;color:var(--text);padding:11px 12px;font-size:14px}
+    .cloud-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .cloud-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:6px}
+    .cloud-dot.ok{background:#78d58b}.cloud-dot.warn{background:#f2c879}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .stat{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:11px}
+    .stat .n{font-size:25px;font-weight:850;font-variant-numeric:tabular-nums}.stat .l{font-size:12px;color:var(--muted);margin-top:3px}
+    .star-pop{position:fixed;left:50%;top:34%;transform:translate(-50%,-50%) scale(.7);font-size:54px;z-index:99;pointer-events:none;opacity:0}
+    .star-pop.show{animation:starPop .9s ease-out}
+    @keyframes starPop{0%{opacity:0;transform:translate(-50%,-45%) scale(.55)}25%{opacity:1;transform:translate(-50%,-55%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-95%) scale(.9)}}
+    .settle-list{margin-top:10px}
+    .settle-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+    .settle-row select{background:#111114;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:13px}
+    .hidden{display:none!important}
+    .summary-box{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#111114;font-size:14px;line-height:1.55;color:#d2d2d7}
+    .calendar-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}.calendar-head button{padding:8px 10px}
+    .calendar-week,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .calendar-week{margin-top:10px}.calendar-week div{text-align:center;color:var(--muted);font-size:11px;padding:5px 0}
+    .day{min-height:62px;background:#111114;border:1px solid var(--line);border-radius:12px;padding:7px;cursor:pointer}
+    .day.empty{background:transparent;border-color:transparent;cursor:default}.day.today{outline:1px solid #e8e8ec}
+    .day .dn{font-size:12px;color:var(--muted)}.day .stars{font-size:13px;margin-top:8px}
+    .day-detail{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+    .history-task{padding:6px 0;border-top:1px solid #2d2d32;font-size:13px}.history-task:first-child{border-top:none}
+    .sync-stamp{font-size:11px;color:var(--muted);margin-top:6px}
+    @media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,1fr)}.settle-row{grid-template-columns:1fr}.day{min-height:56px;padding:6px}}
 
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="wrap">
@@ -103,6 +135,31 @@
     <b>放到 iPhone / iPad 主屏幕：</b>
     <div class="note" style="margin-top:6px">
       用 Safari 打开这个网页 → 点“分享” → “添加到主屏幕”。之后会像一个独立 App 一样打开。
+    </div>
+  </section>
+
+  <section class="card" id="cloudCard">
+    <div class="cloud-grid">
+      <div>
+        <div class="eyebrow">☁️ 云同步</div>
+        <div id="cloudState"><span class="cloud-dot warn"></span>尚未登录</div>
+        <div class="sync-stamp" id="cloudStamp"></div>
+      </div>
+      <div class="badge">Supabase</div>
+    </div>
+    <div id="cloudLoggedOut">
+      <div class="cloud-login">
+        <input id="loginEmail" type="email" placeholder="输入邮箱；所有设备使用同一个邮箱">
+        <button id="sendMagicLink">发送登录链接</button>
+      </div>
+      <div class="small">邮箱里点一次登录链接即可。登录后，手机和 iPad 会读取同一份云端计划。</div>
+    </div>
+    <div id="cloudLoggedIn" class="hidden">
+      <div class="cloud-actions">
+        <button id="syncNow">立即保存到云端</button>
+        <button class="secondary" id="reloadCloud">重新载入云端</button>
+        <button class="secondary" id="signOut">退出登录</button>
+      </div>
     </div>
   </section>
 
@@ -139,10 +196,50 @@
     <div class="status" id="status"></div>
   </section>
 
+  <section class="card">
+    <div class="eyebrow">⭐ 成就盒子</div>
+    <div class="note">完成一个真正结束的练习任务，就积一颗星。待回访、延期和取消都不会扣星。</div>
+    <div class="stats-grid">
+      <div class="stat"><div class="n" id="starsToday">0</div><div class="l">今日 ⭐</div></div>
+      <div class="stat"><div class="n" id="starsWeek">0</div><div class="l">本周 ⭐</div></div>
+      <div class="stat"><div class="n" id="starsMonth">0</div><div class="l">本月 ⭐</div></div>
+      <div class="stat"><div class="n" id="starsTotal">0</div><div class="l">总计 ⭐</div></div>
+    </div>
+    <div class="summary-box" id="periodSummary">还没有完成记录。</div>
+  </section>
+
   <details class="card" open>
     <summary>今天的完整计划</summary>
     <div id="schedule" class="list"></div>
   </details>
+
+  <section class="card">
+    <div class="eyebrow">🌙 每日结算</div>
+    <div class="note">今天不想继续时，不需要把剩余分钟当成“欠债”。把任务留下，明天重新排就好。</div>
+    <div class="editor-buttons"><button id="openSettlement">开始今日结算</button></div>
+    <div id="settlementPanel" class="hidden">
+      <div class="summary-box" id="settlementHeadline"></div>
+      <div class="settle-list" id="settlementList"></div>
+      <div class="editor-buttons">
+        <button id="allTomorrow" class="secondary">剩余全部：明天重排</button>
+        <button id="saveSettlement">保存结算</button>
+        <button id="closeSettlement" class="secondary">先不结算</button>
+      </div>
+      <div class="status" id="settlementStatus"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="eyebrow">📅 完成日历</div>
+    <div class="calendar-head">
+      <button class="secondary" id="prevMonth">‹</button>
+      <b id="calendarTitle"></b>
+      <button class="secondary" id="nextMonth">›</button>
+    </div>
+    <div class="calendar-week"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div></div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div class="day-detail" id="dayDetail"><div class="small">点某一天，可以看当天完成了什么。</div></div>
+  </section>
 
   
   <details class="card">
@@ -170,6 +267,7 @@
     </div>
   </details>
 </div>
+<div id="starPop" class="star-pop">⭐ +1</div>
 
 <script>
 const DEFAULT_PLAN = `15 | 第1组 | №2 第一段 | 慢—中速熟谱、解决卡顿点
@@ -202,22 +300,39 @@ const DEFAULT_PLAN = `15 | 第1组 | №2 第一段 | 慢—中速熟谱、解�
 8 | 第5组 | №7 第10–13页 | 中速慢练
 8 | 第5组 | №7 三段连接 | 中速完整跑一次`;
 
+const SUPABASE_URL = "https://fbsrmotzijgxbvoesgms.supabase.co";
+const SUPABASE_KEY = "sb_publishable_k4x61g0zj5v80FuzitW_0w_wai549P1";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+});
+
 let plan=[], idx=0, remaining=0, running=false, tick=null, wakeLock=null, audioCtx=null, endAt=null;
 let carryovers = JSON.parse(localStorage.getItem('practiceCarryovers') || '[]');
 let refs = JSON.parse(localStorage.getItem('practiceRefs') || '{}');
+let deferredTasks = JSON.parse(localStorage.getItem('practiceDeferredTasks') || '[]');
+let historyRows = JSON.parse(localStorage.getItem('practiceHistory') || '[]');
+let currentUser = null;
+let cloudSaving = false;
+let cloudSaveTimer = null;
+let lastCloudSavedAt = 0;
+let calendarCursor = new Date();
 
 const $ = id => document.getElementById(id);
 const input = $('planInput');
 input.value = localStorage.getItem('practicePlanText') || DEFAULT_PLAN;
 
+function newId(){ return (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`); }
 function parsePlan(text){
   return text.split(/\n+/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{
     const parts=line.split('|').map(x=>x.trim());
     if(parts.length<3) throw new Error(`第 ${i+1} 行格式不对`);
     const minutes=Number(parts[0].replace(/[^\d.]/g,''));
     if(!minutes || minutes<=0) throw new Error(`第 ${i+1} 行时长不对`);
-    return {minutes,group:parts[1]||'',task:parts[2]||'',note:parts.slice(3).join(' | ')||'',
-      rest:/休息/.test(parts[1])||/休息/.test(parts[2])};
+    return {
+      uid:newId(),minutes,group:parts[1]||'',task:parts[2]||'',note:parts.slice(3).join(' | ')||'',
+      rest:/休息/.test(parts[1])||/休息/.test(parts[2]),
+      completedAt:null,starAwarded:false,historyId:null,settledStatus:null
+    };
   });
 }
 function mmss(s){s=Math.max(0,Math.ceil(s));const m=Math.floor(s/60),ss=s%60;return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;}
@@ -226,6 +341,163 @@ function totalSeconds(){return plan.reduce((a,x)=>a+x.minutes*60,0)}
 function before(){return plan.slice(0,idx).reduce((a,x)=>a+x.minutes*60,0)}
 function after(){return plan.slice(idx+1).reduce((a,x)=>a+x.minutes*60,0)}
 function totalRemaining(){return remaining+after()}
+function localDateStr(d=new Date()){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function startOfWeek(d=new Date()){
+  const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);x.setHours(0,0,0,0);return x;
+}
+function persistLocalData(){
+  localStorage.setItem('practiceRefs',JSON.stringify(refs));
+  localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
+  localStorage.setItem('practiceDeferredTasks',JSON.stringify(deferredTasks));
+  localStorage.setItem('practiceHistory',JSON.stringify(historyRows));
+}
+function getHistoryById(id){return historyRows.find(h=>h.id===id);}
+function upsertLocalHistory(row){
+  const i=historyRows.findIndex(h=>h.id===row.id);
+  if(i>=0)historyRows[i]={...historyRows[i],...row};else historyRows.push(row);
+  persistLocalData();
+}
+async function pushHistoryRow(row){
+  upsertLocalHistory(row);renderAchievements();renderCalendar();
+  if(!currentUser)return;
+  const payload={...row,user_id:currentUser.id};
+  const {error}=await sb.from('task_history').upsert(payload,{onConflict:'id'});
+  if(error)$('cloudStamp').textContent=`历史同步失败：${error.message}`;
+}
+function makeHistoryRow(x,status,starAwarded,needsRevisit){
+  const id=x.historyId||newId();x.historyId=id;
+  const old=getHistoryById(id);
+  return {
+    id,task_date:localDateStr(),task_name:x.task,group_name:x.group||null,category:'练琴',
+    planned_minutes:Math.round(x.minutes),status,needs_revisit:!!needsRevisit,star_awarded:!!starAwarded,
+    completed_at:new Date().toISOString(),created_at:old?.created_at||new Date().toISOString()
+  };
+}
+function popStar(){const el=$('starPop');el.classList.remove('show');void el.offsetWidth;el.classList.add('show');}
+function taskAlreadyStarred(x){return !!x.starAwarded||!!(x.historyId&&getHistoryById(x.historyId)?.star_awarded);}
+async function markTaskComplete(index,{revisit=false,awardStar=true}={}){
+  const x=plan[index];if(!x||x.rest)return;
+  x.completedAt=x.completedAt||new Date().toISOString();
+  const alreadyStarred=taskAlreadyStarred(x);
+  if(awardStar&&!alreadyStarred){x.starAwarded=true;popStar();}
+  if(revisit)addCarryover(x);else removeCarryover(x);
+  const row=makeHistoryRow(x,revisit?'completed_revisit':'completed',awardStar?true:alreadyStarred,revisit);
+  await pushHistoryRow(row);scheduleCloudSave();
+}
+async function updateTaskRevisitHistory(x,needsRevisit){
+  if(!x||x.rest)return;
+  let row=x.historyId?getHistoryById(x.historyId):null;
+  if(!row)row=makeHistoryRow(x,'completed',!!x.starAwarded,needsRevisit);
+  row={...row,needs_revisit:needsRevisit,status:needsRevisit?'completed_revisit':'completed'};
+  if(!needsRevisit&&!row.star_awarded){row.star_awarded=true;x.starAwarded=true;popStar();}
+  await pushHistoryRow(row);
+}
+function renderAchievements(){
+  const today=localDateStr(),weekStart=localDateStr(startOfWeek()),monthPrefix=today.slice(0,7);
+  const starred=historyRows.filter(h=>h.star_awarded);
+  const count=fn=>starred.filter(fn).length;
+  $('starsToday').textContent=count(h=>h.task_date===today);
+  $('starsWeek').textContent=count(h=>h.task_date>=weekStart);
+  $('starsMonth').textContent=count(h=>h.task_date?.startsWith(monthPrefix));
+  $('starsTotal').textContent=starred.length;
+  const weekRows=historyRows.filter(h=>h.task_date>=weekStart);
+  const monthRows=historyRows.filter(h=>h.task_date?.startsWith(monthPrefix));
+  const wc=weekRows.filter(h=>h.status==='completed'||h.status==='completed_revisit').length;
+  const wr=weekRows.filter(h=>h.needs_revisit).length;
+  const wd=weekRows.filter(h=>h.status==='deferred').length;
+  const mc=monthRows.filter(h=>h.status==='completed'||h.status==='completed_revisit').length;
+  $('periodSummary').textContent=`本周完成 ${wc} 项 · 待回访 ${wr} 项 · 延期 ${wd} 项。 本月已完成 ${mc} 项。`;
+}
+function renderCalendar(){
+  const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth();
+  $('calendarTitle').textContent=`${y}年 ${m+1}月`;
+  const first=new Date(y,m,1),last=new Date(y,m+1,0),offset=(first.getDay()+6)%7,today=localDateStr();
+  const cells=[];for(let i=0;i<offset;i++)cells.push('<div class="day empty"></div>');
+  for(let d=1;d<=last.getDate();d++){
+    const ds=localDateStr(new Date(y,m,d));
+    const stars=historyRows.filter(h=>h.task_date===ds&&h.star_awarded).length;
+    cells.push(`<div class="day ${ds===today?'today':''}" data-day="${ds}"><div class="dn">${d}</div><div class="stars">${stars?`⭐ ${stars}`:''}</div></div>`);
+  }
+  $('calendarGrid').innerHTML=cells.join('');
+}
+function renderDayDetail(ds){
+  const rows=historyRows.filter(h=>h.task_date===ds);
+  if(!rows.length){$('dayDetail').innerHTML=`<b>${ds}</b><div class="small">这一天还没有记录。</div>`;return;}
+  const labels={completed:'完成',completed_revisit:'完成 · 待回访',deferred:'延期',cancelled:'取消'};
+  $('dayDetail').innerHTML=`<b>${ds}</b>`+rows.map(h=>`<div class="history-task">${h.star_awarded?'⭐ ':''}${h.task_name} · ${labels[h.status]||h.status}${h.needs_revisit?' ↪︎':''}</div>`).join('');
+}
+function cloudPayload(){
+  return {
+    user_id:currentUser.id,current_plan_title:`练琴计划 ${localDateStr()}`,current_plan_date:localDateStr(),
+    plan_text:input.value,plan_data:plan,current_index:idx,remaining_seconds:Math.max(0,Math.round(remaining)),
+    timer_running:running,timer_end_at:running&&endAt?new Date(endAt).toISOString():null,
+    reference_links:refs,carryovers,deferred_tasks:deferredTasks,updated_at:new Date().toISOString()
+  };
+}
+function scheduleCloudSave(){
+  persistLocalData();if(!currentUser)return;
+  clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(()=>saveCloudState(false),650);
+}
+async function saveCloudState(showMessage=true){
+  if(!currentUser||cloudSaving)return;cloudSaving=true;
+  $('cloudState').innerHTML='<span class="cloud-dot warn"></span>正在同步…';
+  const {error}=await sb.from('app_state').upsert(cloudPayload(),{onConflict:'user_id'});
+  cloudSaving=false;
+  if(error){$('cloudState').innerHTML='<span class="cloud-dot warn"></span>同步失败';$('cloudStamp').textContent=error.message;return;}
+  lastCloudSavedAt=Date.now();
+  $('cloudState').innerHTML='<span class="cloud-dot ok"></span>已登录 · 云同步开启';
+  $('cloudStamp').textContent=`最近保存：${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  if(showMessage)$('status').textContent='已保存到云端';
+}
+async function mergeAndUploadLocalHistory(){
+  if(!currentUser||!historyRows.length)return;
+  const payload=historyRows.map(h=>({...h,user_id:currentUser.id}));
+  await sb.from('task_history').upsert(payload,{onConflict:'id'});
+}
+async function loadCloudState(){
+  if(!currentUser)return;
+  $('cloudState').innerHTML='<span class="cloud-dot warn"></span>正在读取云端…';
+  const [{data:state,error:stateErr},{data:hist,error:histErr}]=await Promise.all([
+    sb.from('app_state').select('*').eq('user_id',currentUser.id).maybeSingle(),
+    sb.from('task_history').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:true})
+  ]);
+  if(stateErr){$('cloudStamp').textContent=stateErr.message;return;}
+  if(hist&&!histErr){
+    const map=new Map(historyRows.map(h=>[h.id,h]));hist.forEach(h=>map.set(h.id,h));historyRows=[...map.values()];persistLocalData();
+  }
+  if(!state){
+    await mergeAndUploadLocalHistory();await saveCloudState(false);
+  }else{
+    stop();
+    if(state.plan_text)input.value=state.plan_text;
+    if(Array.isArray(state.plan_data)&&state.plan_data.length){
+      plan=state.plan_data.map(x=>({...x,uid:x.uid||newId(),completedAt:x.completedAt||null,starAwarded:!!x.starAwarded,historyId:x.historyId||null,settledStatus:x.settledStatus||null}));
+    }else plan=parsePlan(input.value);
+    idx=Math.max(0,Math.min(Number(state.current_index)||0,plan.length-1));
+    remaining=Number(state.remaining_seconds)||plan[idx]?.minutes*60||0;
+    refs=state.reference_links||{};carryovers=Array.isArray(state.carryovers)?state.carryovers:[];
+    deferredTasks=Array.isArray(state.deferred_tasks)?state.deferred_tasks:[];
+    endAt=state.timer_end_at?Date.parse(state.timer_end_at):null;running=!!state.timer_running&&!!endAt;
+    localStorage.setItem('practicePlanText',input.value);renderRefGrid();
+    if(running){requestWakeLock();clearInterval(tick);tick=setInterval(syncByClock,250);syncByClock();}
+  }
+  persistLocalData();saveState();render();renderAchievements();renderCalendar();
+  $('cloudState').innerHTML='<span class="cloud-dot ok"></span>已登录 · 云同步开启';$('cloudStamp').textContent='已载入最新云端状态';
+}
+function renderAuth(){
+  const logged=!!currentUser;$('cloudLoggedOut').classList.toggle('hidden',logged);$('cloudLoggedIn').classList.toggle('hidden',!logged);
+  if(logged)$('cloudState').innerHTML=`<span class="cloud-dot ok"></span>${currentUser.email||'已登录'} · 云同步开启`;
+  else{$('cloudState').innerHTML='<span class="cloud-dot warn"></span>尚未登录';$('cloudStamp').textContent='登录后，手机和 iPad 会使用同一份计划。';}
+}
+async function initAuth(){
+  const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;renderAuth();
+  if(currentUser)await loadCloudState();
+  sb.auth.onAuthStateChange(async(event,session)=>{const next=session?.user||null,changed=next?.id!==currentUser?.id;currentUser=next;renderAuth();if(changed&&currentUser)await loadCloudState();});
+}
 function currentPieceNo(){
   if(!plan.length) return null;
   const m=(plan[idx].task+" "+plan[idx].group).match(/№\s*([1-7])/);
@@ -268,18 +540,36 @@ function saveRefs(){
   localStorage.setItem('practiceRefs',JSON.stringify(refs));
   $('status').textContent='参考录音链接已保存';
   renderReference();
+  scheduleCloudSave();
 }
-function markCarryover(){
-  if(!plan.length)return;
-  carryovers.push({task:plan[idx].task,group:plan[idx].group,at:new Date().toISOString()});
-  localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
-  if(running){
-    advance(true);
-    render();
-  } else {
-    goTo(idx+1);
+function isCarried(x){
+  return carryovers.some(c=>c.task===x.task&&c.group===x.group);
+}
+function addCarryover(x){
+  if(!isCarried(x)){
+    carryovers.push({task:x.task,group:x.group,at:new Date().toISOString()});
+    localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
   }
-  $('status').textContent='已标记“未完成，留待下一轮”';
+}
+function removeCarryover(x){
+  carryovers=carryovers.filter(c=>!(c.task===x.task&&c.group===x.group));
+  localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
+}
+async function markCarryover(){
+  if(!plan.length)return;
+  const x=plan[idx];
+  if(!x.rest){
+    x.completedAt=x.completedAt||new Date().toISOString();addCarryover(x);
+    await pushHistoryRow(makeHistoryRow(x,'completed_revisit',false,true));
+  }
+  if(running)advance(true);else moveToIndex(idx+1);
+  $('status').textContent='已标记“未完成，留待下一轮”';scheduleCloudSave();
+}
+async function toggleCompletedCarry(index){
+  const x=plan[index];if(!x)return;
+  if(isCarried(x)){removeCarryover(x);await updateTaskRevisitHistory(x,false);$('status').textContent='已取消待回访';}
+  else{addCarryover(x);await updateTaskRevisitHistory(x,true);$('status').textContent='已标记待回访';}
+  render();scheduleCloudSave();
 }
 
 function render(){
@@ -299,10 +589,18 @@ function render(){
   $('startPause').textContent=running?'暂停':'开始';
   document.title=`${mmss(remaining)} · ${cur.task}`;
   const makeItem=(x,i)=>{
-    const carried=carryovers.some(c=>c.task===x.task&&c.group===x.group);
-    return `<div class="item ${i<idx?'done':''} ${i===idx?'current':''} ${x.rest?'rest':''}">
+    const carried=isCarried(x);
+    const completed=i<idx;
+    const editButton=completed
+      ? `<div class="item-actions"><button data-toggle-carry="${i}">${carried?'✓ 取消待回访':'↪︎ 标记待回访'}</button></div>`
+      : '';
+    return `<div class="item ${completed?'done':''} ${i===idx?'current':''} ${x.rest?'rest':''}">
       <div class="dur">${x.minutes} min</div>
-      <div><div class="name">${x.group} · ${x.task}${carried?' <span class="carry">↪︎ 待回访</span>':''}</div><div class="small">${x.note||''}</div></div>
+      <div>
+        <div class="name">${x.group} · ${x.task}${carried?' <span class="carry">↪︎ 待回访</span>':''}</div>
+        <div class="small">${x.note||''}</div>
+        ${editButton}
+      </div>
     </div>`;
   };
 
@@ -338,65 +636,70 @@ function beep(){
   }catch(e){}
 }
 function saveState(){
-  localStorage.setItem('practiceTimerState',JSON.stringify({
-    idx,remaining,running,endAt,planText:input.value
-  }));
+  localStorage.setItem('practiceTimerState',JSON.stringify({idx,remaining,running,endAt,planText:input.value,plan}));
+  persistLocalData();
 }
 function stop(){
-  if(running&&endAt) remaining=Math.max(0,(endAt-Date.now())/1000);
-  running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();render();
+  if(running&&endAt)remaining=Math.max(0,(endAt-Date.now())/1000);
+  running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();render();scheduleCloudSave();
 }
 function advance(auto=true){
   beep();
-  if(idx<plan.length-1){
-    idx++;remaining=plan[idx].minutes*60;
-    $('status').textContent=`已切换：${plan[idx].task}`;
-    if(auto&&running) endAt=Date.now()+remaining*1000;
-  }else{
-    remaining=0;running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();
-    $('status').textContent='今天的练习完成了 🎉';
-  }
+  if(idx<plan.length-1){idx++;remaining=plan[idx].minutes*60;$('status').textContent=`已切换：${plan[idx].task}`;if(auto&&running)endAt=Date.now()+remaining*1000;}
+  else{remaining=0;running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();$('status').textContent='今天的练习完成了 🎉';}
+  scheduleCloudSave();
+}
+async function completeAndAdvance(auto=true){
+  await markTaskComplete(idx,{revisit:false,awardStar:true});advance(auto);render();
 }
 function syncByClock(){
   if(!running||!endAt)return;
-  let now=Date.now();
-  while(running && now>=endAt){
+  const now=Date.now();
+  if(now>=endAt){
     const over=(now-endAt)/1000;
-    advance(true);
-    if(!running)break;
-    remaining=Math.max(0,remaining-over);
-    endAt=now+remaining*1000;
-    if(remaining>0)break;
+    completeAndAdvance(true).then(()=>{
+      if(!running)return;
+      remaining=Math.max(0,remaining-over);endAt=Date.now()+remaining*1000;render();
+    });
+    return;
   }
-  if(running) remaining=Math.max(0,(endAt-Date.now())/1000);
+  remaining=Math.max(0,(endAt-now)/1000);
+  if(currentUser&&now-lastCloudSavedAt>15000)saveCloudState(false);
   render();
 }
 function start(){
   if(running||!plan.length)return;
-  running=true;endAt=Date.now()+remaining*1000;requestWakeLock();render();
-  tick=setInterval(syncByClock,250);
+  running=true;endAt=Date.now()+remaining*1000;requestWakeLock();render();scheduleCloudSave();tick=setInterval(syncByClock,250);
 }
-function goTo(n){
-  stop();idx=Math.max(0,Math.min(plan.length-1,n));remaining=plan[idx].minutes*60;$('status').textContent='';render();
+function moveToIndex(n){
+  stop();idx=Math.max(0,Math.min(plan.length-1,n));remaining=plan[idx].minutes*60;$('status').textContent='';render();scheduleCloudSave();
 }
 function addMinutes(n){
-  remaining+=n*60;if(running)endAt+=n*60*1000;$('status').textContent=`当前段 +${n} 分钟`;render();
+  remaining+=n*60;if(running)endAt+=n*60*1000;$('status').textContent=`当前段 +${n} 分钟`;render();scheduleCloudSave();
 }
 $('startPause').onclick=()=>running?stop():start();
-$('prev').onclick=()=>goTo(idx-1);
-$('next').onclick=()=>goTo(idx+1);
-$('resetCurrent').onclick=()=>{stop();remaining=plan[idx].minutes*60;render()};
+$('prev').onclick=()=>moveToIndex(idx-1);
+$('next').onclick=()=>completeAndAdvance(false);
+$('resetCurrent').onclick=()=>{stop();remaining=plan[idx].minutes*60;render();scheduleCloudSave()};
 $('plus1').onclick=()=>addMinutes(1);
 $('plus5').onclick=()=>addMinutes(5);
-$('finishEarly').onclick=()=>{if(running){advance(true);render()}else{goTo(idx+1)}};
+$('finishEarly').onclick=()=>completeAndAdvance(running);
 
 $('saveRefs').onclick=saveRefs;
 $('carryNext').onclick=markCarryover;
+$('schedule').addEventListener('click',e=>{
+  const btn=e.target.closest('[data-toggle-carry]');
+  if(!btn)return;
+  const i=Number(btn.dataset.toggleCarry);
+  toggleCompletedCarry(i);
+});
 renderRefGrid();
 
 $('loadPlan').onclick=()=>{
-  try{stop();plan=parsePlan(input.value);localStorage.setItem('practicePlanText',input.value);idx=0;remaining=plan[0].minutes*60;$('status').textContent=`已载入 ${plan.length} 个分段`;render()}
-  catch(e){alert(e.message)}
+  try{
+    stop();plan=parsePlan(input.value);carryovers=[];localStorage.setItem('practicePlanText',input.value);
+    idx=0;remaining=plan[0].minutes*60;$('status').textContent=`已载入 ${plan.length} 个分段`;render();scheduleCloudSave();
+  }catch(e){alert(e.message)}
 };
 $('saveText').onclick=()=>{
   const blob=new Blob([input.value],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');
@@ -405,30 +708,76 @@ $('saveText').onclick=()=>{
 $('loadText').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{const f=e.target.files[0];if(f)input.value=await f.text()};
 
+$('sendMagicLink').onclick=async()=>{
+  const email=$('loginEmail').value.trim();if(!email){$('cloudStamp').textContent='先输入邮箱。';return;}
+  $('cloudStamp').textContent='正在发送登录链接…';
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  $('cloudStamp').textContent=error?`发送失败：${error.message}`:'登录链接已发送，请去邮箱点开。';
+};
+$('signOut').onclick=async()=>{await sb.auth.signOut();currentUser=null;renderAuth();};
+$('syncNow').onclick=()=>saveCloudState(true);
+$('reloadCloud').onclick=()=>loadCloudState();
+
+$('prevMonth').onclick=()=>{calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()-1,1);renderCalendar();};
+$('nextMonth').onclick=()=>{calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+1,1);renderCalendar();};
+$('calendarGrid').addEventListener('click',e=>{const day=e.target.closest('[data-day]');if(day)renderDayDetail(day.dataset.day);});
+
+function buildSettlement(){
+  const remainingTasks=plan.map((x,i)=>({x,i})).filter(({x,i})=>i>=idx&&!x.rest);
+  const completed=plan.slice(0,idx).filter(x=>!x.rest).length,total=plan.filter(x=>!x.rest).length;
+  $('settlementHeadline').textContent=`今天已推进 ${completed} / ${total} 个练习任务。剩余 ${remainingTasks.length} 项可以重新安排，不需要把原分钟数当成债务。`;
+  $('settlementList').innerHTML=remainingTasks.length?remainingTasks.map(({x,i})=>`
+    <div class="settle-row">
+      <div><b>${x.task}</b><div class="small">${x.group} · 原计划 ${x.minutes} 分钟</div></div>
+      <select data-settle-index="${i}">
+        <option value="tomorrow">明天重新安排</option>
+        <option value="backlog">放回任务池</option>
+        <option value="cancelled">取消 / 不再需要</option>
+      </select>
+    </div>`).join(''):'<div class="small">今天已经没有剩余任务了 🎉</div>';
+}
+$('openSettlement').onclick=()=>{buildSettlement();$('settlementPanel').classList.remove('hidden');};
+$('closeSettlement').onclick=()=>$('settlementPanel').classList.add('hidden');
+$('allTomorrow').onclick=()=>document.querySelectorAll('[data-settle-index]').forEach(s=>s.value='tomorrow');
+$('saveSettlement').onclick=async()=>{
+  const selects=[...document.querySelectorAll('[data-settle-index]')];
+  for(const s of selects){
+    const i=Number(s.dataset.settleIndex),x=plan[i],mode=s.value;if(!x||x.rest)continue;
+    if(mode==='cancelled'){
+      x.settledStatus='cancelled';await pushHistoryRow(makeHistoryRow(x,'cancelled',false,isCarried(x)));
+    }else{
+      x.settledStatus=mode;
+      const target=new Date();target.setDate(target.getDate()+1);
+      deferredTasks.push({id:newId(),task:x.task,group:x.group,note:x.note,minutes:x.minutes,mode,from_date:localDateStr(),target_date:mode==='tomorrow'?localDateStr(target):null});
+      await pushHistoryRow(makeHistoryRow(x,'deferred',false,isCarried(x)));
+    }
+  }
+  persistLocalData();scheduleCloudSave();
+  const tomorrow=selects.filter(s=>s.value==='tomorrow').length,backlog=selects.filter(s=>s.value==='backlog').length,cancelled=selects.filter(s=>s.value==='cancelled').length;
+  $('settlementStatus').textContent=`已结算：明天重排 ${tomorrow} 项 · 任务池 ${backlog} 项 · 取消 ${cancelled} 项。`;
+  renderAchievements();renderCalendar();
+};
+
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(running)requestWakeLock();syncByClock()}});
-window.addEventListener('beforeunload',saveState);
+window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v1.5.1';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
   plan=parsePlan(input.value);
   const saved=JSON.parse(localStorage.getItem('practiceTimerState')||'null');
   if(saved&&saved.planText===input.value){
-    idx=Math.min(saved.idx||0,plan.length-1);
-    remaining=Number(saved.remaining)||plan[idx].minutes*60;
-    if(saved.running&&saved.endAt){
-      running=true;endAt=saved.endAt;
-      requestWakeLock();
-      tick=setInterval(syncByClock,250);
-      syncByClock();
-    }
+    if(Array.isArray(saved.plan)&&saved.plan.length)plan=saved.plan.map(x=>({...x,uid:x.uid||newId(),starAwarded:!!x.starAwarded,historyId:x.historyId||null,settledStatus:x.settledStatus||null}));
+    idx=Math.min(saved.idx||0,plan.length-1);remaining=Number(saved.remaining)||plan[idx].minutes*60;
+    if(saved.running&&saved.endAt){running=true;endAt=saved.endAt;requestWakeLock();tick=setInterval(syncByClock,250);syncByClock();}
   }else remaining=plan[0].minutes*60;
   render();
 }catch(e){
   input.value=DEFAULT_PLAN;plan=parsePlan(DEFAULT_PLAN);remaining=plan[0].minutes*60;render();
 }
+renderAchievements();renderCalendar();initAuth();
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
