@@ -146,55 +146,7 @@
     </div>
   </section>
 
-  <section class="card" id="cloudCard">
-    <div class="cloud-grid">
-      <div>
-        <div class="eyebrow">☁️ 云同步</div>
-        <div id="cloudState"><span class="cloud-dot warn"></span>尚未登录</div>
-        <div class="sync-stamp" id="cloudStamp"></div>
-      </div>
-      <div class="badge">Supabase</div>
-    </div>
-    <div id="cloudLoggedOut">
-      <div class="small"><b>推荐：邮箱 + 密码登录</b>。不会发送邮件，也不会占用 Supabase 邮件额度。</div>
-      <div class="cloud-login password-login">
-        <input id="loginEmail" type="email" autocomplete="username" placeholder="邮箱">
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
-        <button id="passwordLogin">登录</button>
-      </div>
-
-      <div class="link-login">
-        <div class="small"><b>备用：Magic Link</b>（第一次建立账号或忘记密码时再用）</div>
-        <div class="cloud-login" style="margin-top:8px">
-          <button id="sendMagicLink" class="secondary">发送登录链接</button>
-        </div>
-        <input id="pastedLoginLink" type="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-          placeholder="主屏幕 App 可把邮件里的完整登录链接粘贴到这里">
-        <div class="cloud-actions">
-          <button id="loginWithPastedLink" class="secondary">用粘贴链接登录</button>
-          <button id="pasteLoginLink" class="secondary">从剪贴板粘贴</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="cloudLoggedIn" class="hidden">
-      <div class="cloud-actions">
-        <button id="syncNow">立即保存到云端</button>
-        <button class="secondary" id="reloadCloud">重新载入云端</button>
-        <button class="secondary" id="signOut">退出登录</button>
-      </div>
-
-      <div class="password-setup">
-        <div class="small"><b>设置 / 修改登录密码</b><br>
-        只需要在一台已经登录的设备上设置一次。之后 iPhone、iPad 和主屏幕 App 都可以直接用邮箱 + 密码登录，不再发邮件。</div>
-        <div class="cloud-login" style="margin-top:8px">
-          <input id="newPassword" type="password" autocomplete="new-password" placeholder="新密码（至少 8 位）">
-          <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再输入一次">
-          <button id="setPassword">保存密码</button>
-        </div>
-      </div>
-    </div>
-  </section>
+  
 
   <section class="card">
     <div class="eyebrow" id="position">当前任务</div>
@@ -306,6 +258,56 @@
       <input id="fileInput" type="file" accept=".txt,text/plain" style="display:none">
     </div>
   </details>
+
+  <section class="card" id="cloudCard">
+    <div class="cloud-grid">
+      <div>
+        <div class="eyebrow">☁️ 云同步</div>
+        <div id="cloudState"><span class="cloud-dot warn"></span>尚未登录</div>
+        <div class="sync-stamp" id="cloudStamp"></div>
+      </div>
+      <div class="badge">Supabase</div>
+    </div>
+    <div id="cloudLoggedOut">
+      <div class="small"><b>推荐：邮箱 + 密码登录</b>。不会发送邮件，也不会占用 Supabase 邮件额度。</div>
+      <div class="cloud-login password-login">
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="邮箱">
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
+        <button id="passwordLogin">登录</button>
+      </div>
+
+      <div class="link-login">
+        <div class="small"><b>备用：Magic Link</b>（第一次建立账号或忘记密码时再用）</div>
+        <div class="cloud-login" style="margin-top:8px">
+          <button id="sendMagicLink" class="secondary">发送登录链接</button>
+        </div>
+        <input id="pastedLoginLink" type="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="主屏幕 App 可把邮件里的完整登录链接粘贴到这里">
+        <div class="cloud-actions">
+          <button id="loginWithPastedLink" class="secondary">用粘贴链接登录</button>
+          <button id="pasteLoginLink" class="secondary">从剪贴板粘贴</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cloudLoggedIn" class="hidden">
+      <div class="cloud-actions">
+        <button id="syncNow">立即保存到云端</button>
+        <button class="secondary" id="reloadCloud">重新载入云端</button>
+        <button class="secondary" id="signOut">退出登录</button>
+      </div>
+
+      <div class="password-setup">
+        <div class="small"><b>设置 / 修改登录密码</b><br>
+        只需要在一台已经登录的设备上设置一次。之后 iPhone、iPad 和主屏幕 App 都可以直接用邮箱 + 密码登录，不再发邮件。</div>
+        <div class="cloud-login" style="margin-top:8px">
+          <input id="newPassword" type="password" autocomplete="new-password" placeholder="新密码（至少 8 位）">
+          <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再输入一次">
+          <button id="setPassword">保存密码</button>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 <div id="starPop" class="star-pop">⭐ +1</div>
 
@@ -1002,7 +1004,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.4';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.6';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
