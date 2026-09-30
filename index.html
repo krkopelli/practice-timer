@@ -796,14 +796,15 @@ async function loginFromPastedSupabaseLink(raw){
   try{ u=new URL(value); }
   catch(e){ throw new Error('这个内容看起来不是完整的网址。请复制邮件里的完整登录链接。'); }
 
-  // 1) Supabase 邮件里最常见的 verify 链接：
-  //    /auth/v1/verify?token=<TokenHash>&type=magiclink...
+  // 1) Supabase 邮件里的 verify 链接。
+  // 当前 Supabase JS 文档要求 Email TokenHash 使用 type:'email' 验证。
+  // signInWithOtp() 发送的 Magic Link 也走这个 email 验证类型。
   const tokenHash=u.searchParams.get('token_hash')||u.searchParams.get('token');
-  const otpType=u.searchParams.get('type')||'magiclink';
   if(tokenHash){
-    const allowed=new Set(['magiclink','signup','invite','recovery','email_change','email']);
-    const type=allowed.has(otpType)?otpType:'magiclink';
-    const {data,error}=await sb.auth.verifyOtp({token_hash:tokenHash,type});
+    const {data,error}=await sb.auth.verifyOtp({
+      token_hash:tokenHash,
+      type:'email'
+    });
     if(error) throw error;
     if(data?.session) return data.session;
   }
@@ -927,7 +928,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.2';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.3';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
