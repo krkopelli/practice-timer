@@ -96,6 +96,9 @@
     .cloud-grid{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
     .cloud-login{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .cloud-login input{flex:1;min-width:210px;border-radius:12px;border:1px solid var(--line);background:#111114;color:var(--text);padding:11px 12px;font-size:14px}
+    .link-login{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+    .link-login input{width:100%;border-radius:12px;border:1px solid var(--line);background:#111114;color:var(--text);padding:11px 12px;font-size:13px;margin:8px 0}
+
     .cloud-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .cloud-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:6px}
     .cloud-dot.ok{background:#78d58b}.cloud-dot.warn{background:#f2c879}
@@ -152,7 +155,18 @@
         <input id="loginEmail" type="email" placeholder="输入邮箱；所有设备使用同一个邮箱">
         <button id="sendMagicLink">发送登录链接</button>
       </div>
-      <div class="small">邮箱里点一次登录链接即可。登录后，手机和 iPad 会读取同一份云端计划。</div>
+      <div class="small">如果你是在 Safari 里使用，可以直接点邮件里的登录链接。</div>
+
+      <div class="link-login">
+        <div class="small"><b>如果你是在“添加到主屏幕”的 App 里：</b><br>
+        收到邮件后不要直接点开。长按邮件里的登录按钮/链接 → 复制链接 → 回到这里粘贴，再点“在此设备登录”。</div>
+        <input id="pastedLoginLink" type="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="把 Supabase 登录链接粘贴到这里">
+        <div class="cloud-actions">
+          <button id="loginWithPastedLink">在此设备登录</button>
+          <button id="pasteLoginLink" class="secondary">从剪贴板粘贴</button>
+        </div>
+      </div>
     </div>
     <div id="cloudLoggedIn" class="hidden">
       <div class="cloud-actions">
@@ -708,11 +722,91 @@ $('saveText').onclick=()=>{
 $('loadText').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{const f=e.target.files[0];if(f)input.value=await f.text()};
 
+
+async function loginFromPastedSupabaseLink(raw){
+  const value=(raw||'').trim();
+  if(!value) throw new Error('请先粘贴登录链接。');
+
+  let u;
+  try{ u=new URL(value); }
+  catch(e){ throw new Error('这个内容看起来不是完整的网址。请复制邮件里的完整登录链接。'); }
+
+  // 1) Supabase 邮件里最常见的 verify 链接：
+  //    /auth/v1/verify?token=<TokenHash>&type=magiclink...
+  const tokenHash=u.searchParams.get('token_hash')||u.searchParams.get('token');
+  const otpType=u.searchParams.get('type')||'magiclink';
+  if(tokenHash){
+    const allowed=new Set(['magiclink','signup','invite','recovery','email_change','email']);
+    const type=allowed.has(otpType)?otpType:'magiclink';
+    const {data,error}=await sb.auth.verifyOtp({token_hash:tokenHash,type});
+    if(error) throw error;
+    if(data?.session) return data.session;
+  }
+
+  // 2) PKCE / code flow
+  const code=u.searchParams.get('code');
+  if(code){
+    const {data,error}=await sb.auth.exchangeCodeForSession(code);
+    if(error) throw error;
+    if(data?.session) return data.session;
+  }
+
+  // 3) 已经被验证后形成的 URL，token 可能在 #fragment 里。
+  const hash=new URLSearchParams((u.hash||'').replace(/^#/,''));
+  const accessToken=hash.get('access_token');
+  const refreshToken=hash.get('refresh_token');
+  if(accessToken&&refreshToken){
+    const {data,error}=await sb.auth.setSession({
+      access_token:accessToken,
+      refresh_token:refreshToken
+    });
+    if(error) throw error;
+    if(data?.session) return data.session;
+  }
+
+  throw new Error('没有在链接里找到可用的登录凭证。请确认你复制的是 Supabase 邮件里的登录链接，而且链接还没有过期。');
+}
+
 $('sendMagicLink').onclick=async()=>{
-  const email=$('loginEmail').value.trim();if(!email){$('cloudStamp').textContent='先输入邮箱。';return;}
+  const email=$('loginEmail').value.trim();
+  if(!email){$('cloudStamp').textContent='先输入邮箱。';return;}
   $('cloudStamp').textContent='正在发送登录链接…';
-  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  $('cloudStamp').textContent=error?`发送失败：${error.message}`:'登录链接已发送，请去邮箱点开。';
+  const {error}=await sb.auth.signInWithOtp({
+    email,
+    options:{emailRedirectTo:location.origin+location.pathname}
+  });
+  $('cloudStamp').textContent=error
+    ? `发送失败：${error.message}`
+    : '登录链接已发送。主屏幕 App 请复制邮件里的链接回来粘贴；Safari 可直接点开。';
+};
+
+$('pasteLoginLink').onclick=async()=>{
+  try{
+    const text=await navigator.clipboard.readText();
+    $('pastedLoginLink').value=text||'';
+    $('cloudStamp').textContent=text?'已从剪贴板粘贴。':'剪贴板里没有内容。';
+  }catch(e){
+    $('cloudStamp').textContent='系统没有允许直接读取剪贴板，请手动长按输入框粘贴。';
+  }
+};
+
+$('loginWithPastedLink').onclick=async()=>{
+  const btn=$('loginWithPastedLink');
+  const raw=$('pastedLoginLink').value;
+  btn.disabled=true;
+  $('cloudStamp').textContent='正在在这台设备上验证登录链接…';
+  try{
+    const session=await loginFromPastedSupabaseLink(raw);
+    currentUser=session?.user||null;
+    renderAuth();
+    $('pastedLoginLink').value='';
+    $('cloudStamp').textContent='登录成功，正在载入云端数据…';
+    await loadCloudState();
+  }catch(e){
+    $('cloudStamp').textContent=`登录失败：${e.message||e}`;
+  }finally{
+    btn.disabled=false;
+  }
 };
 $('signOut').onclick=async()=>{await sb.auth.signOut();currentUser=null;renderAuth();};
 $('syncNow').onclick=()=>saveCloudState(true);
@@ -762,7 +856,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.1';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
