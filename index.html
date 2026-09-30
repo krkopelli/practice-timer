@@ -87,6 +87,8 @@
       padding:10px;font-size:13px
     }
     .carry{color:#ffd8a8}
+    .section-label{font-size:12px;color:var(--muted);margin:8px 0 2px;padding-top:4px}
+    .completed-block{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
 
   </style>
 </head>
@@ -296,13 +298,27 @@ function render(){
   $('progressBar').style.width=`${Math.min(100,Math.max(0,elapsed/totalSeconds()*100))}%`;
   $('startPause').textContent=running?'暂停':'开始';
   document.title=`${mmss(remaining)} · ${cur.task}`;
-  $('schedule').innerHTML=plan.map((x,i)=>{
+  const makeItem=(x,i)=>{
     const carried=carryovers.some(c=>c.task===x.task&&c.group===x.group);
     return `<div class="item ${i<idx?'done':''} ${i===idx?'current':''} ${x.rest?'rest':''}">
       <div class="dur">${x.minutes} min</div>
       <div><div class="name">${x.group} · ${x.task}${carried?' <span class="carry">↪︎ 待回访</span>':''}</div><div class="small">${x.note||''}</div></div>
     </div>`;
-  }).join('');
+  };
+
+  const upcoming=[];
+  for(let i=idx;i<plan.length;i++) upcoming.push(makeItem(plan[i],i));
+
+  const completed=[];
+  for(let i=0;i<idx;i++) completed.push(makeItem(plan[i],i));
+
+  $('schedule').innerHTML =
+    `<div class="section-label">接下来</div>` +
+    upcoming.join('') +
+    (completed.length
+      ? `<div class="completed-block"><div class="section-label">已完成 · 自动移到底部</div>${completed.join('')}</div>`
+      : '');
+
   renderReference();
   saveState();
 }
@@ -393,7 +409,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',saveState);
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v1.5';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v1.5.1';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
