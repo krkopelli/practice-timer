@@ -111,6 +111,8 @@
     .settle-list{margin-top:10px}
     .settle-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
     .settle-row select{background:#111114;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:13px}
+    .daily-summary-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+    .daily-summary-wrap textarea{min-height:110px;margin-top:8px}
     .hidden{display:none!important}
     .summary-box{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#111114;font-size:14px;line-height:1.55;color:#d2d2d7}
     .calendar-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}.calendar-head button{padding:8px 10px}
@@ -234,6 +236,13 @@
     <div id="settlementPanel" class="hidden">
       <div class="summary-box" id="settlementHeadline"></div>
       <div class="settle-list" id="settlementList"></div>
+
+      <div class="daily-summary-wrap">
+        <div class="eyebrow">今日练习总结（可选）</div>
+        <div class="small">不用写长。两三句话记录“今天为什么顺 / 为什么卡、时间估算是否合理、明天需要怎么调整”就够了。</div>
+        <textarea id="dailySummaryInput" placeholder="例如：规划整体偏紧凑；低熟悉度曲目 15 分钟只够摸谱，明天应增加恢复时间；已有基础的曲目可按实际难度分配。"></textarea>
+      </div>
+
       <div class="editor-buttons">
         <button id="allTomorrow" class="secondary">剩余全部：明天重排</button>
         <button id="saveSettlement">保存结算</button>
@@ -410,16 +419,55 @@ async function updateTaskRevisitHistory(x,needsRevisit){
   if(!needsRevisit&&!row.star_awarded){row.star_awarded=true;x.starAwarded=true;popStar();}
   await pushHistoryRow(row);
 }
+function getDailySummaryRow(ds=localDateStr()){
+  return historyRows.find(h=>h.category==='daily_summary'&&h.task_date===ds)||null;
+}
+function getDailySummary(ds=localDateStr()){
+  return getDailySummaryRow(ds)?.task_name||'';
+}
+async function saveDailySummary(text,ds=localDateStr()){
+  const value=(text||'').trim();
+  const existing=getDailySummaryRow(ds);
+
+  if(!value){
+    if(existing){
+      historyRows=historyRows.filter(h=>h.id!==existing.id);
+      persistLocalData();
+      if(currentUser){
+        const {error}=await sb.from('task_history').delete().eq('id',existing.id).eq('user_id',currentUser.id);
+        if(error)$('cloudStamp').textContent=`总结删除同步失败：${error.message}`;
+      }
+    }
+    return;
+  }
+
+  const row={
+    id:existing?.id||newId(),
+    task_date:ds,
+    task_name:value,
+    group_name:null,
+    category:'daily_summary',
+    planned_minutes:null,
+    status:'cancelled',
+    needs_revisit:false,
+    star_awarded:false,
+    completed_at:null,
+    created_at:existing?.created_at||new Date().toISOString()
+  };
+  await pushHistoryRow(row);
+}
+
 function renderAchievements(){
   const today=localDateStr(),weekStart=localDateStr(startOfWeek()),monthPrefix=today.slice(0,7);
-  const starred=historyRows.filter(h=>h.star_awarded);
+  const taskRows=historyRows.filter(h=>h.category!=='daily_summary');
+  const starred=taskRows.filter(h=>h.star_awarded);
   const count=fn=>starred.filter(fn).length;
   $('starsToday').textContent=count(h=>h.task_date===today);
   $('starsWeek').textContent=count(h=>h.task_date>=weekStart);
   $('starsMonth').textContent=count(h=>h.task_date?.startsWith(monthPrefix));
   $('starsTotal').textContent=starred.length;
-  const weekRows=historyRows.filter(h=>h.task_date>=weekStart);
-  const monthRows=historyRows.filter(h=>h.task_date?.startsWith(monthPrefix));
+  const weekRows=taskRows.filter(h=>h.task_date>=weekStart);
+  const monthRows=taskRows.filter(h=>h.task_date?.startsWith(monthPrefix));
   const wc=weekRows.filter(h=>h.status==='completed'||h.status==='completed_revisit').length;
   const wr=weekRows.filter(h=>h.needs_revisit).length;
   const wd=weekRows.filter(h=>h.status==='deferred').length;
@@ -438,11 +486,28 @@ function renderCalendar(){
   }
   $('calendarGrid').innerHTML=cells.join('');
 }
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+}
 function renderDayDetail(ds){
-  const rows=historyRows.filter(h=>h.task_date===ds);
-  if(!rows.length){$('dayDetail').innerHTML=`<b>${ds}</b><div class="small">这一天还没有记录。</div>`;return;}
+  const summary=getDailySummary(ds);
+  const rows=historyRows.filter(h=>h.task_date===ds&&h.category!=='daily_summary');
+
+  if(!rows.length&&!summary){
+    $('dayDetail').innerHTML=`<b>${ds}</b><div class="small">这一天还没有记录。</div>`;
+    return;
+  }
+
   const labels={completed:'完成',completed_revisit:'完成 · 待回访',deferred:'延期',cancelled:'取消'};
-  $('dayDetail').innerHTML=`<b>${ds}</b>`+rows.map(h=>`<div class="history-task">${h.star_awarded?'⭐ ':''}${h.task_name} · ${labels[h.status]||h.status}${h.needs_revisit?' ↪︎':''}</div>`).join('');
+  const summaryHtml=summary
+    ? `<div class="summary-box"><b>今日练习总结</b><br>${escapeHtml(summary).replace(/\n/g,'<br>')}</div>`
+    : '';
+
+  const tasksHtml=rows.length
+    ? rows.map(h=>`<div class="history-task">${h.star_awarded?'⭐ ':''}${escapeHtml(h.task_name)} · ${labels[h.status]||h.status}${h.needs_revisit?' ↪︎':''}</div>`).join('')
+    : '<div class="small">这一天没有任务记录。</div>';
+
+  $('dayDetail').innerHTML=`<b>${ds}</b>${summaryHtml}${tasksHtml}`;
 }
 function cloudPayload(){
   return {
@@ -830,7 +895,11 @@ function buildSettlement(){
       </select>
     </div>`).join(''):'<div class="small">今天已经没有剩余任务了 🎉</div>';
 }
-$('openSettlement').onclick=()=>{buildSettlement();$('settlementPanel').classList.remove('hidden');};
+$('openSettlement').onclick=()=>{
+  buildSettlement();
+  $('dailySummaryInput').value=getDailySummary(localDateStr());
+  $('settlementPanel').classList.remove('hidden');
+};
 $('closeSettlement').onclick=()=>$('settlementPanel').classList.add('hidden');
 $('allTomorrow').onclick=()=>document.querySelectorAll('[data-settle-index]').forEach(s=>s.value='tomorrow');
 $('saveSettlement').onclick=async()=>{
@@ -846,17 +915,19 @@ $('saveSettlement').onclick=async()=>{
       await pushHistoryRow(makeHistoryRow(x,'deferred',false,isCarried(x)));
     }
   }
+  await saveDailySummary($('dailySummaryInput').value,localDateStr());
   persistLocalData();scheduleCloudSave();
   const tomorrow=selects.filter(s=>s.value==='tomorrow').length,backlog=selects.filter(s=>s.value==='backlog').length,cancelled=selects.filter(s=>s.value==='cancelled').length;
-  $('settlementStatus').textContent=`已结算：明天重排 ${tomorrow} 项 · 任务池 ${backlog} 项 · 取消 ${cancelled} 项。`;
-  renderAchievements();renderCalendar();
+  const hasSummary=!!$('dailySummaryInput').value.trim();
+  $('settlementStatus').textContent=`已结算：明天重排 ${tomorrow} 项 · 任务池 ${backlog} 项 · 取消 ${cancelled} 项${hasSummary?' · 今日总结已保存':''}。`;
+  renderAchievements();renderCalendar();renderDayDetail(localDateStr());
 };
 
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(running)requestWakeLock();syncByClock()}});
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.1';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.2';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
