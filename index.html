@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#121212" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="练琴计时" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <title>练琴分段计时</title>
+  <style>
+    :root{
+      --bg:#101011; --card:#19191c; --card2:#222226; --line:#35353b;
+      --text:#f6f6f7; --muted:#a7a7ad; --soft:#d4d4d8; --accent:#f5f5f7;
+      --rest:#becbff; --danger:#ffb0b0; --ok:#9ed8ac;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC",
+      "Helvetica Neue",Arial,sans-serif;
+      padding:max(18px,env(safe-area-inset-top)) 16px max(28px,env(safe-area-inset-bottom));
+    }
+    .wrap{max-width:880px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    h1{font-size:22px;margin:0;letter-spacing:-.2px}
+    .badge{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:6px 9px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin:12px 0}
+    .eyebrow{font-size:13px;color:var(--muted);margin-bottom:7px}
+    .group{font-size:16px;color:var(--soft)}
+    .task{font-size:34px;font-weight:800;line-height:1.13;margin:7px 0 8px;letter-spacing:-.6px}
+    .note{font-size:15px;line-height:1.55;color:#c9c9ce;min-height:1.5em}
+    .timer{font-variant-numeric:tabular-nums;font-size:86px;line-height:1;font-weight:850;letter-spacing:-3px;margin:20px 0 12px}
+    .progress{height:11px;background:#2a2a2f;border-radius:999px;overflow:hidden;margin:14px 0 9px}
+    .progress>div{height:100%;width:0;background:#ececf1;transition:width .2s linear}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+    .pill{background:var(--card2);padding:7px 10px;border-radius:999px}
+    .next{font-size:14px;color:var(--muted);margin-top:11px}
+    .controls{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}
+    button{
+      appearance:none;border:none;border-radius:14px;padding:13px 10px;font-size:15px;font-weight:700;
+      background:#f1f1f3;color:#111;cursor:pointer;touch-action:manipulation
+    }
+    button.secondary{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+    button.danger{background:#3a2225;color:#ffdede;border:1px solid #5e3136}
+    .micro{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px}
+    .micro button{padding:10px 8px;font-size:14px}
+    details summary{cursor:pointer;font-weight:750}
+    .list{margin-top:12px}
+    .item{display:grid;grid-template-columns:62px 1fr;gap:10px;padding:11px 0;border-top:1px solid var(--line);align-items:start}
+    .item:first-child{border-top:none}
+    .dur{font-variant-numeric:tabular-nums;color:var(--muted)}
+    .item.done .name{text-decoration:line-through;color:var(--muted)}
+    .item.current .name{font-weight:850}
+    .item.rest .name{color:var(--rest)}
+    .small{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.35}
+    textarea{
+      width:100%;min-height:260px;resize:vertical;border-radius:14px;border:1px solid var(--line);
+      background:#111114;color:var(--text);padding:12px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.5
+    }
+    .editor-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .editor-buttons button{padding:10px 12px}
+    .status{font-size:13px;color:var(--muted);margin-top:9px;min-height:1.2em}
+    .install{display:none}
+    .install.show{display:block}
+    code{background:#111114;border:1px solid var(--line);border-radius:7px;padding:2px 5px}
+    @media(max-width:640px){
+      .task{font-size:29px}.timer{font-size:68px}.controls{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(min-width:900px){
+      .task{font-size:40px}.timer{font-size:104px}.card{padding:22px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎹 练琴分段计时</h1>
+    <div class="badge" id="modeBadge">网页模式</div>
+  </header>
+
+  <section class="card install" id="installTip">
+    <b>放到 iPhone / iPad 主屏幕：</b>
+    <div class="note" style="margin-top:6px">
+      用 Safari 打开这个网页 → 点“分享” → “添加到主屏幕”。之后会像一个独立 App 一样打开。
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="eyebrow" id="position">当前任务</div>
+    <div class="group" id="group">—</div>
+    <div class="task" id="task">载入计划后开始</div>
+    <div class="note" id="note"></div>
+    <div class="timer" id="timer">00:00</div>
+    <div class="progress"><div id="progressBar"></div></div>
+    <div class="meta">
+      <span class="pill" id="taskProgress">任务 0 / 0</span>
+      <span class="pill" id="totalRemain">总剩余 00:00</span>
+      <span class="pill" id="sessionTotal">总时长 00:00</span>
+    </div>
+    <div class="next" id="nextTask">下一项：—</div>
+
+    <div class="controls">
+      <button id="startPause">开始</button>
+      <button class="secondary" id="prev">上一项</button>
+      <button class="secondary" id="next">下一项</button>
+      <button class="danger" id="resetCurrent">重置当前</button>
+    </div>
+    <div class="micro">
+      <button class="secondary" id="plus1">+1 分钟</button>
+      <button class="secondary" id="plus5">+5 分钟</button>
+      <button class="secondary" id="finishEarly">提前完成</button>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <details class="card" open>
+    <summary>今天的完整计划</summary>
+    <div id="schedule" class="list"></div>
+  </details>
+
+  <details class="card">
+    <summary>导入 / 编辑计划</summary>
+    <p class="note">
+      每行格式：<b>分钟 | 组别 | 当前任务 | 备注</b><br>
+      例如：<code>15 | 第1组 | №2 第一段 | 慢—中速熟谱、解决卡顿点</code><br>
+      以后可以直接把 ChatGPT 给你的“计时器导入块”整段粘贴到这里。
+    </p>
+    <textarea id="planInput"></textarea>
+    <div class="editor-buttons">
+      <button id="loadPlan">载入这份计划</button>
+      <button class="secondary" id="saveText">导出 .txt</button>
+      <button class="secondary" id="loadText">导入 .txt</button>
+      <input id="fileInput" type="file" accept=".txt,text/plain" style="display:none">
+    </div>
+  </details>
+</div>
+
+<script>
+const DEFAULT_PLAN = `15 | 第1组 | №2 第一段 | 慢—中速熟谱、解决卡顿点
+15 | 第1组 | №2 第二段 | 同样处理，尤其把不熟的连接弄顺
+10 | 第1组 | №2 两段连接 | 中速尽量不断
+7 | 休息 | 休息 | 喝水、走动一下
+
+17 | 第2组 | №1 Fuga 最难段 | 拆小块慢练，先解决音和衔接，不追速度
+8 | 第2组 | №1 第一段 | 中速检查熟练度＋难点
+8 | 第2组 | №1 第二段 | 中速检查熟练度＋难点
+9 | 第2组 | №1 三段连接 / 随机起点 | 尤其练进出 Fuga
+7 | 休息 | 休息 | 离开琴，走一走
+
+12 | 第3组 | №3 前3页 | 熟谱＋中慢速，目标是不停顿
+15 | 第3组 | №3 中间2页 | 今天重点，慢练＋把陌生处拆开
+13 | 第3组 | №3 后2页 | 熟悉谱面＋连接
+5 | 第3组 | №3 结构快速走一遍 | 标记明天最该返工的地方
+10 | 休息 | 长休息 | 吃点东西 / 走动 / 彻底离开琴
+
+16 | 第4组 | №4 三段磨合 | 以中速连续性为主，不深挖
+7 | 第4组 | №5 Carmen 第一段 | 前6页到第7页第一行
+8 | 第4组 | №5 Carmen 第二段 | 第7–9页，第一个加速段
+9 | 第4组 | №5 Carmen 第三段 | 最后一个加速段到结尾
+7 | 休息 | 休息 | 喝水、活动手臂
+
+8 | 第5组 | №6 整体四页 | 以音乐性、句子、呼吸为主，不要弹呆
+5 | 第5组 | №6 局部修正 | 修最不自然的1–2处，再接一次
+8 | 第5组 | №7 第1–5页 | 中速慢练
+8 | 第5组 | №7 第5–9页 | 中速慢练
+8 | 第5组 | №7 第10–13页 | 中速慢练
+8 | 第5组 | №7 三段连接 | 中速完整跑一次`;
+
+let plan=[], idx=0, remaining=0, running=false, tick=null, wakeLock=null, audioCtx=null, endAt=null;
+
+const $ = id => document.getElementById(id);
+const input = $('planInput');
+input.value = localStorage.getItem('practicePlanText') || DEFAULT_PLAN;
+
+function parsePlan(text){
+  return text.split(/\n+/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{
+    const parts=line.split('|').map(x=>x.trim());
+    if(parts.length<3) throw new Error(`第 ${i+1} 行格式不对`);
+    const minutes=Number(parts[0].replace(/[^\d.]/g,''));
+    if(!minutes || minutes<=0) throw new Error(`第 ${i+1} 行时长不对`);
+    return {minutes,group:parts[1]||'',task:parts[2]||'',note:parts.slice(3).join(' | ')||'',
+      rest:/休息/.test(parts[1])||/休息/.test(parts[2])};
+  });
+}
+function mmss(s){s=Math.max(0,Math.ceil(s));const m=Math.floor(s/60),ss=s%60;return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;}
+function hms(s){s=Math.max(0,Math.ceil(s));const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`:`${m}:${String(ss).padStart(2,'0')}`;}
+function totalSeconds(){return plan.reduce((a,x)=>a+x.minutes*60,0)}
+function before(){return plan.slice(0,idx).reduce((a,x)=>a+x.minutes*60,0)}
+function after(){return plan.slice(idx+1).reduce((a,x)=>a+x.minutes*60,0)}
+function totalRemaining(){return remaining+after()}
+
+function render(){
+  if(!plan.length)return;
+  const cur=plan[idx];
+  $('position').textContent=`当前任务 · ${idx+1}/${plan.length}`;
+  $('group').textContent=cur.group;
+  $('task').textContent=cur.task;
+  $('note').textContent=cur.note;
+  $('timer').textContent=mmss(remaining);
+  $('taskProgress').textContent=`任务 ${idx+1} / ${plan.length}`;
+  $('totalRemain').textContent=`总剩余 ${hms(totalRemaining())}`;
+  $('sessionTotal').textContent=`总时长 ${hms(totalSeconds())}`;
+  $('nextTask').textContent=idx<plan.length-1?`下一项：${plan[idx+1].group} · ${plan[idx+1].task}`:'下一项：完成 🎉';
+  const elapsed=before()+(cur.minutes*60-remaining);
+  $('progressBar').style.width=`${Math.min(100,Math.max(0,elapsed/totalSeconds()*100))}%`;
+  $('startPause').textContent=running?'暂停':'开始';
+  document.title=`${mmss(remaining)} · ${cur.task}`;
+  $('schedule').innerHTML=plan.map((x,i)=>`
+    <div class="item ${i<idx?'done':''} ${i===idx?'current':''} ${x.rest?'rest':''}">
+      <div class="dur">${x.minutes} min</div>
+      <div><div class="name">${x.group} · ${x.task}</div><div class="small">${x.note||''}</div></div>
+    </div>`).join('');
+  saveState();
+}
+async function requestWakeLock(){
+  try{if('wakeLock' in navigator&&!wakeLock)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}
+}
+function releaseWakeLock(){try{if(wakeLock){wakeLock.release();wakeLock=null}}catch(e){}}
+function beep(){
+  try{
+    audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
+    const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+    osc.connect(gain);gain.connect(audioCtx.destination);osc.frequency.value=880;
+    gain.gain.setValueAtTime(.0001,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.25,audioCtx.currentTime+.02);
+    gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.75);
+    osc.start();osc.stop(audioCtx.currentTime+.8);
+  }catch(e){}
+}
+function saveState(){
+  localStorage.setItem('practiceTimerState',JSON.stringify({
+    idx,remaining,running,endAt,planText:input.value
+  }));
+}
+function stop(){
+  if(running&&endAt) remaining=Math.max(0,(endAt-Date.now())/1000);
+  running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();render();
+}
+function advance(auto=true){
+  beep();
+  if(idx<plan.length-1){
+    idx++;remaining=plan[idx].minutes*60;
+    $('status').textContent=`已切换：${plan[idx].task}`;
+    if(auto&&running) endAt=Date.now()+remaining*1000;
+  }else{
+    remaining=0;running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();
+    $('status').textContent='今天的练习完成了 🎉';
+  }
+}
+function syncByClock(){
+  if(!running||!endAt)return;
+  let now=Date.now();
+  while(running && now>=endAt){
+    const over=(now-endAt)/1000;
+    advance(true);
+    if(!running)break;
+    remaining=Math.max(0,remaining-over);
+    endAt=now+remaining*1000;
+    if(remaining>0)break;
+  }
+  if(running) remaining=Math.max(0,(endAt-Date.now())/1000);
+  render();
+}
+function start(){
+  if(running||!plan.length)return;
+  running=true;endAt=Date.now()+remaining*1000;requestWakeLock();render();
+  tick=setInterval(syncByClock,250);
+}
+function goTo(n){
+  stop();idx=Math.max(0,Math.min(plan.length-1,n));remaining=plan[idx].minutes*60;$('status').textContent='';render();
+}
+function addMinutes(n){
+  remaining+=n*60;if(running)endAt+=n*60*1000;$('status').textContent=`当前段 +${n} 分钟`;render();
+}
+$('startPause').onclick=()=>running?stop():start();
+$('prev').onclick=()=>goTo(idx-1);
+$('next').onclick=()=>goTo(idx+1);
+$('resetCurrent').onclick=()=>{stop();remaining=plan[idx].minutes*60;render()};
+$('plus1').onclick=()=>addMinutes(1);
+$('plus5').onclick=()=>addMinutes(5);
+$('finishEarly').onclick=()=>{if(running){advance(true);render()}else{goTo(idx+1)}};
+
+$('loadPlan').onclick=()=>{
+  try{stop();plan=parsePlan(input.value);localStorage.setItem('practicePlanText',input.value);idx=0;remaining=plan[0].minutes*60;$('status').textContent=`已载入 ${plan.length} 个分段`;render()}
+  catch(e){alert(e.message)}
+};
+$('saveText').onclick=()=>{
+  const blob=new Blob([input.value],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='练琴计划.txt';a.click();URL.revokeObjectURL(a.href);
+};
+$('loadText').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=async e=>{const f=e.target.files[0];if(f)input.value=await f.text()};
+
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(running)requestWakeLock();syncByClock()}});
+window.addEventListener('beforeunload',saveState);
+
+const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+$('modeBadge').textContent=standalone?'主屏幕 App 模式':'网页模式';
+if(!standalone)$('installTip').classList.add('show');
+
+try{
+  plan=parsePlan(input.value);
+  const saved=JSON.parse(localStorage.getItem('practiceTimerState')||'null');
+  if(saved&&saved.planText===input.value){
+    idx=Math.min(saved.idx||0,plan.length-1);
+    remaining=Number(saved.remaining)||plan[idx].minutes*60;
+    if(saved.running&&saved.endAt){
+      running=true;endAt=saved.endAt;
+      requestWakeLock();
+      tick=setInterval(syncByClock,250);
+      syncByClock();
+    }
+  }else remaining=plan[0].minutes*60;
+  render();
+}catch(e){
+  input.value=DEFAULT_PLAN;plan=parsePlan(DEFAULT_PLAN);remaining=plan[0].minutes*60;render();
+}
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>

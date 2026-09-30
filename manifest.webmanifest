@@ -1,0 +1,13 @@
+{
+  "name": "练琴分段计时",
+  "short_name": "练琴计时",
+  "description": "适合钢琴练习的分段倒计时与任务显示工具",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101011",
+  "theme_color": "#121212",
+  "icons": [
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
+}
