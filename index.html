@@ -181,6 +181,11 @@
     <div class="status" id="status"></div>
   </section>
 
+  <details class="card" open>
+    <summary>今日完整列表</summary>
+    <div id="schedule" class="list"></div>
+  </details>
+
   <section class="card">
     <div class="eyebrow">⭐ 成就盒子</div>
     <div class="note">完成一个真正结束的练习任务，就积一颗星。待回访、延期和取消都不会扣星。</div>
@@ -192,11 +197,6 @@
     </div>
     <div class="summary-box" id="periodSummary">还没有完成记录。</div>
   </section>
-
-  <details class="card" open>
-    <summary>今天的完整计划</summary>
-    <div id="schedule" class="list"></div>
-  </details>
 
   <section class="card">
     <div class="eyebrow">🌙 每日结算</div>
@@ -1004,7 +1004,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.6';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.7';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
