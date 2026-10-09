@@ -127,6 +127,26 @@
     .day-detail{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
     .history-task{padding:6px 0;border-top:1px solid #2d2d32;font-size:13px}.history-task:first-child{border-top:none}
     .sync-stamp{font-size:11px;color:var(--muted);margin-top:6px}
+    .setting-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .setting-head button{font-size:13px;padding:9px 12px}
+    .setting-section{border-top:1px solid var(--line);padding-top:14px;margin-top:15px}
+    .setting-section:first-child{border-top:0;margin-top:0;padding-top:0}
+    .ref-pair{display:contents}
+    .ref-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+    .ref-row{border:1px solid var(--line);background:var(--card2);border-radius:13px;padding:10px;display:grid;gap:7px}
+    .ref-row .ref-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:7px}
+    .ref-row .ref-no{color:var(--rest);font-weight:750;font-size:13px}
+    .ref-row input{min-width:0}
+    .ref-row .ref-alias{grid-column:1/-1}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .warnbox{border:1px solid #957332;border-radius:13px;background:#302818;padding:12px;margin-top:12px;color:#ffe2a6;font-size:13px;line-height:1.5}
+    .tiny{font-size:12px;color:var(--muted)}
+    .auth-card{max-width:610px;margin:32px auto 12px}
+    .auth-card h2{margin-top:0;font-size:21px}
+    .sync-indicator{display:inline-block;border-radius:999px;padding:5px 9px;font-size:12px;border:1px solid var(--line);margin-top:8px}
+    .sync-indicator.pending{color:#ffe2a6}
+    .sync-indicator.failed{color:#ffb0b0}
+    .sync-indicator.ok{color:#9ed8ac}
     @media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,1fr)}.settle-row{grid-template-columns:1fr}.day{min-height:56px;padding:6px}}
 
   </style>
@@ -136,7 +156,7 @@
 <div class="wrap">
   <header>
     <h1>🎹 练琴分段计时</h1>
-    <div class="badge" id="modeBadge">网页模式</div>
+    <div style="display:flex;align-items:center;gap:7px"><button id="openSettings" class="secondary hidden" style="padding:7px 10px;font-size:13px">⚙️ 设置</button><div class="badge" id="modeBadge">网页模式</div></div>
   </header>
 
   <section class="card install" id="installTip">
@@ -147,6 +167,41 @@
   </section>
 
   
+
+  <section class="card auth-card" id="authGate">
+    <h2>🎹 欢迎使用 Practice Timer</h2>
+    <p class="note">登录后恢复你自己的练习计划、星星、参考录音和日历。新邮箱注册会创建全新的个人空间。</p>
+    <div class="status" id="authMessage">正在检查登录状态…</div>
+    <div id="cloudLoggedOut">
+      <div class="small"><b>推荐：邮箱 + 密码登录</b>。不会发送邮件，也不会占用 Supabase 邮件额度。</div>
+      <div class="cloud-login password-login">
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="邮箱">
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
+        <button id="passwordLogin">登录</button>
+      </div>
+
+      <div class="setting-section">
+        <div class="small"><b>第一次使用？注册自己的独立账号</b>（需要邮箱和至少8位的密码；可能需要邮箱验证）</div>
+        <div class="cloud-actions"><button id="signUp" class="secondary">用上述邮箱和密码注册</button></div>
+      </div>
+      <div class="link-login">
+        <div class="small"><b>备用：邮箱链接登录 / 密码重置</b></div>
+        <div class="cloud-actions"><button id="resetPassword" class="secondary">发送重置密码邮件</button></div>
+        <div class="cloud-login" style="margin-top:8px">
+          <button id="sendMagicLink" class="secondary">发送登录链接</button>
+        </div>
+        <input id="pastedLoginLink" type="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="主屏幕 App 可把邮件里的完整登录链接粘贴到这里">
+        <div class="cloud-actions">
+          <button id="loginWithPastedLink" class="secondary">用粘贴链接登录</button>
+          <button id="pasteLoginLink" class="secondary">从剪贴板粘贴</button>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div id="workspace" class="hidden">
 
   <section class="card">
     <div class="eyebrow" id="position">当前任务</div>
@@ -236,7 +291,7 @@
   
   <details class="card">
     <summary>🎵 曲名与参考录音链接</summary>
-    <p class="note">左侧填写曲名，右侧粘贴参考录音网址。№1～№7 是任务匹配编号：当前任务含对应编号时，顶部按钮会打开该曲目的链接。曲名可以随时改，旧链接会保留。</p>
+    <p class="note">每个 № 编号固定用于排序，但曲名、作品号 / 别名和链接可以自由编辑。匹配优先级：任务里的 № 编号 → 曲名 → 作品号 / 别名。填写例如「Op. 9 No. 2」「BWV 1001」或「Carmen」。</p>
     <div class="ref-grid" id="refGrid"></div>
     <div class="editor-buttons">
       <button id="saveRefs">保存参考链接</button>
@@ -259,37 +314,17 @@
     </div>
   </details>
 
-  <section class="card" id="cloudCard">
-    <div class="cloud-grid">
-      <div>
-        <div class="eyebrow">☁️ 云同步</div>
+  <details class="card" id="settingsCard">
+    <summary>⚙️ 设置 · 账号、安全与同步</summary>
+    <div class="setting-section">
+      <div class="cloud-grid"><div>
+        <div class="eyebrow">☁️ 当前账号与同步</div>
         <div id="cloudState"><span class="cloud-dot warn"></span>尚未登录</div>
         <div class="sync-stamp" id="cloudStamp"></div>
-      </div>
-      <div class="badge">Supabase</div>
+        <div class="sync-indicator pending" id="syncIndicator">尚未连接</div>
+      </div><div class="badge">Supabase</div></div>
+      <div id="syncConflict" class="warnbox hidden">另一台设备已经更新了这份计划。为防止覆盖，当前设备停止上传计划。建议先导出数据备份，然后点「放弃本地修改，载入云端」。<div class="editor-buttons"><button id="discardConflict" class="secondary">放弃本地修改，载入云端</button><button id="overwriteConflict" class="danger">以本设备版本覆盖云端</button></div></div>
     </div>
-    <div id="cloudLoggedOut">
-      <div class="small"><b>推荐：邮箱 + 密码登录</b>。不会发送邮件，也不会占用 Supabase 邮件额度。</div>
-      <div class="cloud-login password-login">
-        <input id="loginEmail" type="email" autocomplete="username" placeholder="邮箱">
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
-        <button id="passwordLogin">登录</button>
-      </div>
-
-      <div class="link-login">
-        <div class="small"><b>备用：Magic Link</b>（第一次建立账号或忘记密码时再用）</div>
-        <div class="cloud-login" style="margin-top:8px">
-          <button id="sendMagicLink" class="secondary">发送登录链接</button>
-        </div>
-        <input id="pastedLoginLink" type="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-          placeholder="主屏幕 App 可把邮件里的完整登录链接粘贴到这里">
-        <div class="cloud-actions">
-          <button id="loginWithPastedLink" class="secondary">用粘贴链接登录</button>
-          <button id="pasteLoginLink" class="secondary">从剪贴板粘贴</button>
-        </div>
-      </div>
-    </div>
-
     <div id="cloudLoggedIn" class="hidden">
       <div class="cloud-actions">
         <button id="syncNow">立即保存到云端</button>
@@ -307,7 +342,22 @@
         </div>
       </div>
     </div>
-  </section>
+
+    <div class="setting-section">
+      <div class="eyebrow">🗂️ 数据备份 / 恢复</div>
+      <div class="small">导出包括计划、进度、参考录音、星星、历史、待同步修改。恢复文件必须属于当前账号。恢复前会再次确认。如云端版本不同，会停止自动覆盖，让你在冲突提示中选择云端版本或明确确认覆盖。</div>
+      <div class="editor-buttons">
+        <button id="exportBackup" class="secondary">导出完整备份 .json</button>
+        <button id="importBackup" class="secondary">恢复 .json</button>
+        <input id="backupFile" type="file" accept=".json,application/json" class="hidden">
+      </div>
+      <div class="editor-buttons"><button id="importLegacy" class="secondary">检查并合并此设备旧版历史</button></div>
+      <div class="tiny" id="backupStatus"></div>
+    </div>
+    <div class="setting-section"><div class="tiny">仅当前账号可以访问页面；此设备缓存按账号分别存储。网页的本地数据不是加密保险箱，请勿在公用设备上保留已登录会话。</div></div>
+  </details>
+  </div>
+
 </div>
 <div id="starPop" class="star-pop">⭐ +1</div>
 
@@ -349,23 +399,53 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 let plan=[], idx=0, remaining=0, running=false, tick=null, wakeLock=null, audioCtx=null, endAt=null;
-let carryovers = JSON.parse(localStorage.getItem('practiceCarryovers') || '[]');
-let refs = JSON.parse(localStorage.getItem('practiceRefs') || '{}');
-let deferredTasks = JSON.parse(localStorage.getItem('practiceDeferredTasks') || '[]');
-let historyRows = JSON.parse(localStorage.getItem('practiceHistory') || '[]');
-let currentUser = null;
-let cloudSaving = false;
-let cloudSaveTimer = null;
-// Prevent the same countdown boundary (or an accidental rapid double tap) from advancing twice.
-let transitionLock = false;
-let lastTransitionAt = 0;
-let lastCloudSavedAt = 0;
-let calendarCursor = new Date();
-
+let carryovers=[], refs={}, deferredTasks=[], historyRows=[];
+let currentUser=null, activeUserId=null, accountEpoch=0, accountReady=false, loadingAccount=false;
+let pendingOps={}, pendingState=false, cloudBaseUpdatedAt=null, stateRevision=0;
+let cloudSaving=false, cloudSaveTimer=null, lastCloudSavedAt=0;
+let syncConflicted=false, lastSyncError='', retryTimer=null;
+let transitionLock=false,lastTransitionAt=0;
+let calendarCursor=new Date();
 const $ = id => document.getElementById(id);
 const input = $('planInput');
-input.value = localStorage.getItem('practicePlanText') || DEFAULT_PLAN;
-
+input.value='';
+const scopedKey=(id=activeUserId)=>`practice:v4:${id}:workspace`;
+function isReady(){return !!(currentUser&&activeUserId===currentUser.id&&accountReady);}
+function safeJson(s,fallback){try{return JSON.parse(s)||fallback}catch{return fallback}}
+function safeStorageSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){$('cloudStamp').textContent='本地缓存空间不足，建议立即导出备份：'+e.message;return false}}
+function saveSnapshot(){
+  if(!activeUserId||loadingAccount)return;
+  safeStorageSet(scopedKey(),{
+    version:4,userId:activeUserId,savedAt:new Date().toISOString(),
+    planText:input.value,plan,idx,remaining,running,endAt,refs,carryovers,deferredTasks,
+    historyRows,pendingOps,pendingState,cloudBaseUpdatedAt,syncConflicted
+  });
+}
+function resetWorkspace(){
+  clearInterval(tick);tick=null;clearTimeout(cloudSaveTimer);clearTimeout(retryTimer);
+  cloudSaving=false;releaseWakeLock();plan=[];idx=0;remaining=0;running=false;endAt=null;
+  carryovers=[];refs={};deferredTasks=[];historyRows=[];pendingOps={};
+  pendingState=false;cloudBaseUpdatedAt=null;syncConflicted=false;lastSyncError='';stateRevision=0;
+  input.value='';$('status').textContent='';$('settlementPanel').classList.add('hidden');
+  $('dayDetail').innerHTML='<div class="small">点某一天，可以看当天完成了什么。</div>';
+  renderRefGrid();render();renderAchievements();renderCalendar();updateSyncDisplay();
+}
+function hydrateSnapshot(s){
+  if(!s||s.userId!==activeUserId)return false;
+  input.value=s.planText||'';
+  plan=Array.isArray(s.plan)?s.plan:[];
+  idx=Math.max(0,Math.min(Number(s.idx)||0,Math.max(0,plan.length-1)));
+  remaining=Number.isFinite(+s.remaining)?+s.remaining:(plan[idx]?.minutes||0)*60;
+  // Never automatically run two devices' timers at once after opening the app.
+  if(s.running&&s.endAt)remaining=Math.max(0,(Date.parse(s.endAt)-Date.now())/1000);
+  running=false;endAt=null;
+  refs=s.refs||{};carryovers=Array.isArray(s.carryovers)?s.carryovers:[];
+  deferredTasks=Array.isArray(s.deferredTasks)?s.deferredTasks:[];
+  historyRows=Array.isArray(s.historyRows)?s.historyRows:[];
+  pendingOps=s.pendingOps||{};pendingState=!!s.pendingState;
+  cloudBaseUpdatedAt=s.cloudBaseUpdatedAt||null;syncConflicted=!!s.syncConflicted;
+  renderRefGrid();return true;
+}
 function newId(){ return (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`); }
 function parsePlan(text){
   return text.split(/\n+/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{
@@ -394,24 +474,20 @@ function startOfWeek(d=new Date()){
   const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
   const wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);x.setHours(0,0,0,0);return x;
 }
-function persistLocalData(){
-  localStorage.setItem('practiceRefs',JSON.stringify(refs));
-  localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
-  localStorage.setItem('practiceDeferredTasks',JSON.stringify(deferredTasks));
-  localStorage.setItem('practiceHistory',JSON.stringify(historyRows));
-}
+function persistLocalData(){saveSnapshot();}
 function getHistoryById(id){return historyRows.find(h=>h.id===id);}
 function upsertLocalHistory(row){
+  if(!isReady())return;
   const i=historyRows.findIndex(h=>h.id===row.id);
   if(i>=0)historyRows[i]={...historyRows[i],...row};else historyRows.push(row);
-  persistLocalData();
+  pendingOps[row.id]={type:'upsert',row:structuredCloneSafe(row)};
+  saveSnapshot();updateSyncDisplay();scheduleCloudSave(false);
 }
+function structuredCloneSafe(x){return JSON.parse(JSON.stringify(x));}
 async function pushHistoryRow(row){
   upsertLocalHistory(row);renderAchievements();renderCalendar();
-  if(!currentUser)return;
-  const payload={...row,user_id:currentUser.id};
-  const {error}=await sb.from('task_history').upsert(payload,{onConflict:'id'});
-  if(error)$('cloudStamp').textContent=`历史同步失败：${error.message}`;
+  // Durable queue: the timer does not wait for network calls.
+  return;
 }
 function makeHistoryRow(x,status,starAwarded,needsRevisit){
   const id=x.historyId||newId();x.historyId=id;
@@ -454,11 +530,8 @@ async function saveDailySummary(text,ds=localDateStr()){
   if(!value){
     if(existing){
       historyRows=historyRows.filter(h=>h.id!==existing.id);
-      persistLocalData();
-      if(currentUser){
-        const {error}=await sb.from('task_history').delete().eq('id',existing.id).eq('user_id',currentUser.id);
-        if(error)$('cloudStamp').textContent=`总结删除同步失败：${error.message}`;
-      }
+      pendingOps[existing.id]={type:'delete'};
+      saveSnapshot();scheduleCloudSave(false);
     }
     return;
   }
@@ -536,123 +609,276 @@ function cloudPayload(){
     user_id:currentUser.id,current_plan_title:`练琴计划 ${localDateStr()}`,current_plan_date:localDateStr(),
     plan_text:input.value,plan_data:plan,current_index:idx,remaining_seconds:Math.max(0,Math.round(remaining)),
     timer_running:running,timer_end_at:running&&endAt?new Date(endAt).toISOString():null,
-    reference_links:refs,carryovers,deferred_tasks:deferredTasks,updated_at:new Date().toISOString()
+    reference_links:refs,carryovers,deferred_tasks:deferredTasks,
+    updated_at:new Date().toISOString()
   };
 }
-function scheduleCloudSave(){
-  persistLocalData();if(!currentUser)return;
-  clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(()=>saveCloudState(false),650);
+function updateSyncDisplay(message=''){
+  const box=$('syncIndicator');if(!box)return;
+  const pendingCount=Object.keys(pendingOps).length;
+  const dirty=pendingState||pendingCount>0;
+  let label='🟢 已同步至云端',cls='ok';
+  if(!currentUser){label='未登录';cls='pending';}
+  else if(syncConflicted){label='🔴 检测到跨设备版本冲突，已停止覆盖';cls='failed';}
+  else if(cloudSaving){label='🔵 正在同步…';cls='pending';}
+  else if(lastSyncError){label=`🔴 同步失败，本地已保留 ${pendingCount} 条待处理记录`;cls='failed';}
+  else if(dirty){label=`🟡 待同步修改${pendingCount?' · 历史 '+pendingCount+' 条':''}`;cls='pending';}
+  box.textContent=label;box.className=`sync-indicator ${cls}`;
+  $('syncConflict').classList.toggle('hidden',!syncConflicted);
+  if(message)$('cloudStamp').textContent=message;
+}
+function scheduleCloudSave(markDirty=true){
+  if(!isReady())return;
+  if(markDirty){pendingState=true;stateRevision++;}
+  saveSnapshot();updateSyncDisplay();
+  if(syncConflicted)return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer=setTimeout(()=>saveCloudState(false),700);
+}
+function queueRetry(){
+  clearTimeout(retryTimer);
+  if(!isReady()||syncConflicted)return;
+  retryTimer=setTimeout(()=>saveCloudState(false),15000);
+}
+async function flushHistory(epoch,userId){
+  const entries=Object.entries(pendingOps);
+  for(const [id,op] of entries){
+    if(epoch!==accountEpoch||activeUserId!==userId)return false;
+    const query=sb.from('task_history');
+    let result;
+    if(op.type==='delete')result=await query.delete().eq('id',id).eq('user_id',userId);
+    else result=await query.upsert({...op.row,user_id:userId},{onConflict:'id'});
+    if(epoch!==accountEpoch||activeUserId!==userId)return false;
+    if(result.error)throw result.error;
+    if(JSON.stringify(pendingOps[id])===JSON.stringify(op))delete pendingOps[id];
+    saveSnapshot();
+  }
+  return true;
+}
+async function writeStateCAS(userId,expected,payload){
+  if(expected){
+    const {data,error}=await sb.from('app_state')
+      .update(payload).eq('user_id',userId).eq('updated_at',expected)
+      .select('updated_at');
+    if(error)throw error;
+    return data?.length===1?{saved:true,updatedAt:data[0].updated_at}:{saved:false};
+  }
+  const {data,error}=await sb.from('app_state').insert(payload).select('updated_at').single();
+  if(error){
+    if(error.code==='23505')return {saved:false};
+    throw error;
+  }
+  return {saved:true,updatedAt:data.updated_at};
 }
 async function saveCloudState(showMessage=true){
-  if(!currentUser||cloudSaving)return;cloudSaving=true;
-  $('cloudState').innerHTML='<span class="cloud-dot warn"></span>正在同步…';
-  const {error}=await sb.from('app_state').upsert(cloudPayload(),{onConflict:'user_id'});
-  cloudSaving=false;
-  if(error){$('cloudState').innerHTML='<span class="cloud-dot warn"></span>同步失败';$('cloudStamp').textContent=error.message;return;}
-  lastCloudSavedAt=Date.now();
-  $('cloudState').innerHTML='<span class="cloud-dot ok"></span>已登录 · 云同步开启';
-  $('cloudStamp').textContent=`最近保存：${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-  if(showMessage)$('status').textContent='已保存到云端';
+  if(!isReady()||cloudSaving||syncConflicted)return;
+  if(!pendingState&&!Object.keys(pendingOps).length){if(showMessage)updateSyncDisplay('当前没有待同步修改。');return;}
+  const epoch=accountEpoch,userId=activeUserId;
+  cloudSaving=true;lastSyncError='';updateSyncDisplay();
+  try{
+    // History queue is idempotent; a failed write remains queued locally.
+    if(!(await flushHistory(epoch,userId)))return;
+    if(pendingState){
+      const revision=stateRevision;
+      const payload=cloudPayload();
+      const result=await writeStateCAS(userId,cloudBaseUpdatedAt,payload);
+      if(epoch!==accountEpoch||activeUserId!==userId)return;
+      if(!result.saved){
+        syncConflicted=true;pendingState=true;
+        updateSyncDisplay('云端计划版本已变化。为保护两台设备的数据，已暂停上传计划。');
+        saveSnapshot();return;
+      }
+      cloudBaseUpdatedAt=result.updatedAt;
+      if(stateRevision===revision)pendingState=false;
+    }
+    if(epoch!==accountEpoch||activeUserId!==userId)return;
+    lastCloudSavedAt=Date.now();lastSyncError='';saveSnapshot();
+    if(showMessage)$('cloudStamp').textContent='当前账号修改已同步：'+new Date().toLocaleTimeString();
+  }catch(e){
+    if(epoch!==accountEpoch||activeUserId!==userId)return;
+    lastSyncError=e.message||String(e);
+    $('cloudStamp').textContent='同步暂时失败：'+lastSyncError+'。本地更改已保留，联网后会重试。';
+    saveSnapshot();queueRetry();
+  }finally{
+    if(epoch===accountEpoch){
+      cloudSaving=false;updateSyncDisplay();
+      if(!syncConflicted&&(pendingState||Object.keys(pendingOps).length)&&!lastSyncError)scheduleCloudSave(false);
+    }
+  }
 }
-async function mergeAndUploadLocalHistory(){
-  if(!currentUser||!historyRows.length)return;
-  const payload=historyRows.map(h=>({...h,user_id:currentUser.id}));
-  await sb.from('task_history').upsert(payload,{onConflict:'id'});
+function applyCloudState(state){
+  input.value=state.plan_text||'';
+  plan=Array.isArray(state.plan_data)?state.plan_data.map(x=>({...x,uid:x.uid||newId(),completedAt:x.completedAt||null,starAwarded:!!x.starAwarded,historyId:x.historyId||null,settledStatus:x.settledStatus||null})):[];
+  idx=Math.max(0,Math.min(Number(state.current_index)||0,Math.max(plan.length-1,0)));
+  // 0 is a meaningful timer value; do not accidentally reset finished tasks.
+  remaining=Number.isFinite(Number(state.remaining_seconds))?Number(state.remaining_seconds):(plan[idx]?.minutes||0)*60;
+  // Do not resume a second copy of a running timer on another device automatically.
+  if(state.timer_running&&state.timer_end_at)remaining=Math.max(0,(Date.parse(state.timer_end_at)-Date.now())/1000);
+  running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();
+  refs=state.reference_links||{};
+  carryovers=Array.isArray(state.carryovers)?state.carryovers:[];
+  deferredTasks=Array.isArray(state.deferred_tasks)?state.deferred_tasks:[];
+  cloudBaseUpdatedAt=state.updated_at||null;
+  renderRefGrid();
 }
-async function loadCloudState(){
-  if(!currentUser)return;
-  $('cloudState').innerHTML='<span class="cloud-dot warn"></span>正在读取云端…';
+async function loadCloudState({discardPending=false}={}){
+  if(!currentUser||!activeUserId)return;
+  const epoch=accountEpoch,userId=activeUserId;
+  $('cloudStamp').textContent='正在读取当前账号云端数据…';
   const [{data:state,error:stateErr},{data:hist,error:histErr}]=await Promise.all([
-    sb.from('app_state').select('*').eq('user_id',currentUser.id).maybeSingle(),
-    sb.from('task_history').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:true})
+    sb.from('app_state').select('*').eq('user_id',userId).maybeSingle(),
+    sb.from('task_history').select('*').eq('user_id',userId).order('created_at',{ascending:true}).limit(10000)
   ]);
-  if(stateErr){$('cloudStamp').textContent=stateErr.message;return;}
-  if(hist&&!histErr){
-    const map=new Map(historyRows.map(h=>[h.id,h]));hist.forEach(h=>map.set(h.id,h));historyRows=[...map.values()];persistLocalData();
+  if(epoch!==accountEpoch||userId!==activeUserId)return;
+  if(stateErr||histErr){
+    lastSyncError=(stateErr||histErr).message;
+    // If we have a scoped account snapshot, continue offline rather than overwriting.
+    $('cloudStamp').textContent='读取失败，显示此账号的设备缓存：'+lastSyncError;
+    updateSyncDisplay();return;
   }
-  if(!state){
-    await mergeAndUploadLocalHistory();await saveCloudState(false);
+  if(discardPending){pendingOps={};pendingState=false;syncConflicted=false;lastSyncError='';}
+  const dirty=pendingState||Object.keys(pendingOps).length>0;
+  if(!pendingState){
+    if(state)applyCloudState(state);
+    else{
+      // Truly new account: do NOT import global legacy practiceTimerState or history.
+      input.value='';plan=[];idx=0;remaining=0;running=false;endAt=null;
+      refs={};carryovers=[];deferredTasks=[];cloudBaseUpdatedAt=null;renderRefGrid();
+    }
+    const map=new Map((hist||[]).map(h=>[h.id,h]));
+    for(const op of Object.values(pendingOps))if(op.type==='upsert')map.set(op.row.id,op.row);
+    for(const [id,op] of Object.entries(pendingOps))if(op.type==='delete')map.delete(id);
+    historyRows=[...map.values()];syncConflicted=false;
   }else{
-    stop();
-    if(state.plan_text)input.value=state.plan_text;
-    if(Array.isArray(state.plan_data)&&state.plan_data.length){
-      plan=state.plan_data.map(x=>({...x,uid:x.uid||newId(),completedAt:x.completedAt||null,starAwarded:!!x.starAwarded,historyId:x.historyId||null,settledStatus:x.settledStatus||null}));
-    }else plan=parsePlan(input.value);
-    idx=Math.max(0,Math.min(Number(state.current_index)||0,plan.length-1));
-    remaining=Number(state.remaining_seconds)||plan[idx]?.minutes*60||0;
-    refs=state.reference_links||{};carryovers=Array.isArray(state.carryovers)?state.carryovers:[];
-    deferredTasks=Array.isArray(state.deferred_tasks)?state.deferred_tasks:[];
-    endAt=state.timer_end_at?Date.parse(state.timer_end_at):null;running=!!state.timer_running&&!!endAt;
-    localStorage.setItem('practicePlanText',input.value);renderRefGrid();
-    if(running){requestWakeLock();clearInterval(tick);tick=setInterval(syncByClock,250);syncByClock();}
+    const remoteVersion=state?.updated_at||null;
+    if((remoteVersion||null)!==(cloudBaseUpdatedAt||null)&&pendingState)syncConflicted=true;
+    const map=new Map(hist.map(h=>[h.id,h]));
+    for(const op of Object.values(pendingOps)){
+      if(op.type==='upsert')map.set(op.row.id,op.row);
+    }
+    for(const [id,op] of Object.entries(pendingOps))if(op.type==='delete')map.delete(id);
+    historyRows=[...map.values()];
   }
-  persistLocalData();saveState();render();renderAchievements();renderCalendar();
-  $('cloudState').innerHTML='<span class="cloud-dot ok"></span>已登录 · 云同步开启';$('cloudStamp').textContent='已载入最新云端状态';
+  saveSnapshot();render();renderAchievements();renderCalendar();
+  $('cloudStamp').textContent=syncConflicted?'另一台设备已有更新，请先导出备份并处理冲突。':'已载入当前账号的云端数据。';
+  updateSyncDisplay();
+  if(dirty&&!syncConflicted)scheduleCloudSave(false);
 }
 function renderAuth(){
-  const logged=!!currentUser;$('cloudLoggedOut').classList.toggle('hidden',logged);$('cloudLoggedIn').classList.toggle('hidden',!logged);
-  if(logged)$('cloudState').innerHTML=`<span class="cloud-dot ok"></span>${currentUser.email||'已登录'} · 云同步开启`;
-  else{$('cloudState').innerHTML='<span class="cloud-dot warn"></span>尚未登录';$('cloudStamp').textContent='登录后，手机和 iPad 会使用同一份计划。';}
+  const logged=!!currentUser&&accountReady;
+  $('authGate').classList.toggle('hidden',logged);
+  $('workspace').classList.toggle('hidden',!logged);
+  $('openSettings').classList.toggle('hidden',!logged);
+  $('cloudLoggedIn').classList.toggle('hidden',!logged);
+  if(logged)$('cloudState').textContent=`${currentUser.email||'已登录'} · 账号独立空间`;
+  $('authMessage').textContent=loadingAccount?'正在加载账号…':'登录后恢复自己的练习记录。';
+  updateSyncDisplay();
+}
+async function switchAccount(user){
+  const uid=user?.id||null;
+  if(uid===activeUserId&&accountReady){currentUser=user;renderAuth();return;}
+  const epoch=++accountEpoch;
+  // Snapshot is always written under the previous account key, never the new one.
+  if(activeUserId)saveSnapshot();
+  loadingAccount=true;accountReady=false;
+  clearInterval(tick);clearTimeout(cloudSaveTimer);clearTimeout(retryTimer);
+  running=false;endAt=null;tick=null;releaseWakeLock();
+  currentUser=user||null;activeUserId=uid;resetWorkspace();
+  if(!uid){loadingAccount=false;renderAuth();return;}
+  const snap=safeJson(localStorage.getItem(scopedKey(uid)),null);
+  hydrateSnapshot(snap);
+  accountReady=true;loadingAccount=false;renderAuth();render();renderAchievements();renderCalendar();
+  await loadCloudState();
+  if(epoch!==accountEpoch)return;
+  renderAuth();
 }
 async function initAuth(){
-  const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;renderAuth();
-  if(currentUser)await loadCloudState();
-  sb.auth.onAuthStateChange(async(event,session)=>{const next=session?.user||null,changed=next?.id!==currentUser?.id;currentUser=next;renderAuth();if(changed&&currentUser)await loadCloudState();});
+  // Subscribe first; Supabase can emit INITIAL_SESSION while getSession is pending.
+  sb.auth.onAuthStateChange((event,session)=>{
+    if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='INITIAL_SESSION'){
+      // Don't await other Supabase calls inside auth callback (SDK lock).
+      setTimeout(()=>switchAccount(session?.user||null),0);
+    }
+    if(event==='PASSWORD_RECOVERY')setTimeout(()=>{$('authMessage').textContent='邮箱验证成功，请在设置中修改密码。';$('settingsCard').open=true;},0);
+  });
+  const {data:{session},error}=await sb.auth.getSession();
+  if(error)$('authMessage').textContent='登录状态检查失败：'+error.message;
+  await switchAccount(session?.user||null);
 }
-function currentPieceNo(){
-  if(!plan.length) return null;
-  const m=(plan[idx].task+" "+plan[idx].group).match(/№\s*([1-7])/);
-  return m ? m[1] : null;
+function normalMatch(s){
+  return String(s||'').normalize('NFKC').toLocaleLowerCase()
+    .replace(/(?:编号|№)\s*[1-7]\s*[·.、\-]?/g,'')
+    .replace(/[\s\-–—_·.,，。\/:：()（）\[\]【】'"“”]+/g,'');
 }
 function refEntry(n){
   const raw=refs[n];
-  if(typeof raw==='string') return {name:`№${n}`,url:raw};
-  return {name:(raw?.name||`№${n}`),url:(raw?.url||'')};
+  if(typeof raw==='string')return {name:`№${n}`,url:raw,alias:''};
+  return {name:(raw?.name||`№${n}`),url:(raw?.url||''),alias:raw?.alias||''};
+}
+function findCurrentReference(){
+  if(!plan.length||plan[idx]?.rest)return null;
+  const raw=`${plan[idx].task||''} ${plan[idx].group||''}`;
+  // 1. № is a sorting/matching slot, not a rigid title.
+  const explicit=raw.match(/№\s*([1-7])(?!\d)/);
+  if(explicit){
+    const e=refEntry(explicit[1]);
+    if(e.url)return e;
+  }
+  // 2. The song title, opus number or manually provided aliases can match.
+  const hay=normalMatch(raw);
+  let best=null,bestLen=0;
+  for(let n=1;n<=7;n++){
+    const e=refEntry(n);if(!e.url)continue;
+    const aliases=[e.name,...e.alias.split(/[;；,，\n]+/)];
+    for(const alias of aliases){
+      const needle=normalMatch(alias);
+      if(needle.length<3||/^\d+$/.test(needle))continue;
+      if(hay.includes(needle)&&needle.length>bestLen){best={...e,number:n};bestLen=needle.length;}
+    }
+  }
+  return best;
 }
 function renderReference(){
-  const n=currentPieceNo(), btn=$('referenceBtn');
-  const entry=n?refEntry(n):null;
-  if(entry?.url){
-    btn.href=entry.url;
-    btn.classList.remove('disabled');
+  const entry=findCurrentReference(),btn=$('referenceBtn');
+  if(entry?.url&&/^https?:\/\//i.test(entry.url)){
+    btn.href=entry.url;btn.classList.remove('disabled');
     btn.textContent=`▶︎ ${entry.name} · 参考录音`;
   }else{
-    btn.href='#';
-    btn.classList.add('disabled');
-    btn.textContent=n?`▶︎ ${entry.name} · 尚未设置录音`:'▶︎ 当前任务无参考录音';
+    btn.removeAttribute('href');btn.classList.add('disabled');
+    btn.textContent='▶︎ 当前任务暂无匹配的参考录音';
   }
 }
 function renderRefGrid(){
-  const grid=$('refGrid');
-  if(!grid)return;
+  const grid=$('refGrid');if(!grid)return;
   grid.innerHTML='';
   for(let n=1;n<=7;n++){
-    const entry=refEntry(n);
-    const name=document.createElement('input');
-    name.type='text';name.placeholder=`№${n} · 曲名`;name.value=entry.name;
-    name.dataset.piece=String(n);name.dataset.field='name';
-    name.setAttribute('aria-label',`编号${n}曲名`);
-    const url=document.createElement('input');
-    url.type='url';url.placeholder='粘贴参考录音链接';url.value=entry.url;
-    url.dataset.piece=String(n);url.dataset.field='url';
-    url.setAttribute('aria-label',`编号${n}参考录音链接`);
-    grid.appendChild(name);grid.appendChild(url);
+    const e=refEntry(n),row=document.createElement('div');row.className='ref-row';
+    const label=document.createElement('div');label.className='ref-no';label.textContent=`№${n} · 排序编号`;
+    const fields=document.createElement('div');fields.className='ref-fields';
+    const name=document.createElement('input');name.type='text';name.placeholder='曲目名称（可编辑）';name.value=e.name;
+    name.dataset.piece=String(n);name.dataset.field='name';name.setAttribute('aria-label',`№${n} 曲目名称`);
+    const url=document.createElement('input');url.type='url';url.placeholder='粘贴 http(s) 参考录音链接';url.value=e.url;
+    url.dataset.piece=String(n);url.dataset.field='url';url.setAttribute('aria-label',`№${n} 参考录音链接`);
+    const alias=document.createElement('input');alias.type='text';alias.className='ref-alias';
+    alias.placeholder='作品号 / 别名，例如 Op. 9 No. 2; BWV 1001（用分号分隔）';alias.value=e.alias;
+    alias.dataset.piece=String(n);alias.dataset.field='alias';alias.setAttribute('aria-label',`№${n} 作品号或别名`);
+    fields.append(name,url,alias);row.append(label,fields);grid.appendChild(row);
   }
 }
 function saveRefs(){
+  if(!isReady())return;
   const updated={...refs};
   for(let n=1;n<=7;n++){
-    const name=document.querySelector(`#refGrid input[data-piece="${n}"][data-field="name"]`).value.trim()||`№${n}`;
-    const url=document.querySelector(`#refGrid input[data-piece="${n}"][data-field="url"]`).value.trim();
+    const val=f=>document.querySelector(`#refGrid input[data-piece="${n}"][data-field="${f}"]`).value.trim();
+    const name=val('name')||`№${n}`,url=val('url'),alias=val('alias');
     if(url){
       try{const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol))throw new Error();}
-      catch(e){alert(`№${n} 的录音链接不是有效的 http(s) 地址，请检查。`);return;}
+      catch(e){alert(`№${n} 的链接不是有效的 http(s) 地址。`);return;}
     }
-    updated[n]={name,url};
+    updated[n]={name,url,alias};
   }
   refs=updated;
-  localStorage.setItem('practiceRefs',JSON.stringify(refs));
-  $('status').textContent='曲名和参考录音链接已保存';
+  $('status').textContent='曲目名称、作品号 / 别名及参考录音已保存';
   renderReference();scheduleCloudSave();
 }
 function isCarried(x){
@@ -661,14 +887,15 @@ function isCarried(x){
 function addCarryover(x){
   if(!isCarried(x)){
     carryovers.push({task:x.task,group:x.group,at:new Date().toISOString()});
-    localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
+    saveSnapshot();
   }
 }
 function removeCarryover(x){
   carryovers=carryovers.filter(c=>!(c.task===x.task&&c.group===x.group));
-  localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
+  saveSnapshot();
 }
 function markCarryover(){
+  if(!isReady())return;
   // Move the UI forward immediately; the network write must never stall the timer.
   if(!plan.length||transitionLock||Date.now()-lastTransitionAt<700)return;
   transitionLock=true;
@@ -686,6 +913,7 @@ function markCarryover(){
   }finally{transitionLock=false;}
 }
 async function toggleCompletedCarry(index){
+  if(!isReady())return;
   const x=plan[index];if(!x)return;
   if(isCarried(x)){removeCarryover(x);await updateTaskRevisitHistory(x,false);$('status').textContent='已取消待回访';}
   else{addCarryover(x);await updateTaskRevisitHistory(x,true);$('status').textContent='已标记待回访';}
@@ -693,7 +921,14 @@ async function toggleCompletedCarry(index){
 }
 
 function render(){
-  if(!plan.length)return;
+  if(!plan.length){
+    $('position').textContent='当前任务';$('group').textContent='—';
+    $('task').textContent='导入计划后开始';$('note').textContent='';$('timer').textContent='00:00';
+    $('taskProgress').textContent='任务 0 / 0';$('totalRemain').textContent='总剩余 00:00';
+    $('sessionTotal').textContent='总时长 00:00';$('nextTask').textContent='下一项：—';
+    $('progressBar').style.width='0%';$('schedule').innerHTML='<div class="small">尚未载入练习计划。</div>';
+    $('startPause').textContent='开始';renderReference();saveState();return;
+  }
   const cur=plan[idx];
   $('position').textContent=`当前任务 · ${idx+1}/${plan.length}`;
   $('group').textContent=cur.group;
@@ -717,8 +952,8 @@ function render(){
     return `<div class="item ${completed?'done':''} ${i===idx?'current':''} ${x.rest?'rest':''}">
       <div class="dur">${x.minutes} min</div>
       <div>
-        <div class="name">${x.group} · ${x.task}${carried?' <span class="carry">↪︎ 待回访</span>':''}</div>
-        <div class="small">${x.note||''}</div>
+        <div class="name">${escapeHtml(x.group)} · ${escapeHtml(x.task)}${carried?' <span class="carry">↪︎ 待回访</span>':''}</div>
+        <div class="small">${escapeHtml(x.note||'')}</div>
         ${editButton}
       </div>
     </div>`;
@@ -755,11 +990,9 @@ function beep(){
     osc.start();osc.stop(audioCtx.currentTime+.8);
   }catch(e){}
 }
-function saveState(){
-  localStorage.setItem('practiceTimerState',JSON.stringify({idx,remaining,running,endAt,planText:input.value,plan}));
-  persistLocalData();
-}
+function saveState(){saveSnapshot();}
 function stop(){
+  if(!isReady())return;
   if(running&&endAt)remaining=Math.max(0,(endAt-Date.now())/1000);
   running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();render();scheduleCloudSave();
 }
@@ -779,7 +1012,7 @@ function advance(auto=true){
   scheduleCloudSave();
 }
 function completeAndAdvance(auto=true){
-  if(!plan.length||transitionLock||Date.now()-lastTransitionAt<700)return;
+  if(!isReady()||!plan.length||transitionLock||Date.now()-lastTransitionAt<700)return;
   transitionLock=true;
   lastTransitionAt=Date.now();
   try{
@@ -795,7 +1028,7 @@ function completeAndAdvance(auto=true){
   }finally{transitionLock=false;}
 }
 function syncByClock(){
-  if(!running||!endAt)return;
+  if(!isReady()||!running||!endAt)return;
   const now=Date.now();
   if(now>=endAt){
     // Exactly ONE next item per expiry, even if iOS suspends the tab or cloud writes are slow.
@@ -804,23 +1037,23 @@ function syncByClock(){
     return;
   }
   remaining=Math.max(0,(endAt-now)/1000);
-  if(currentUser&&now-lastCloudSavedAt>15000)saveCloudState(false);
   render();
 }
 function start(){
-  if(running||!plan.length)return;
+  if(!isReady()||running||!plan.length)return;
+  if(remaining<=0){remaining=plan[idx].minutes*60;$('status').textContent='之前的倒计时已结束，已重置本段，避免自动跳任务。';}
   running=true;endAt=Date.now()+remaining*1000;requestWakeLock();render();scheduleCloudSave();tick=setInterval(syncByClock,250);
 }
 function moveToIndex(n){
-  stop();idx=Math.max(0,Math.min(plan.length-1,n));remaining=plan[idx].minutes*60;$('status').textContent='';render();scheduleCloudSave();
+  if(!isReady()||!plan.length)return;stop();idx=Math.max(0,Math.min(plan.length-1,n));remaining=plan[idx].minutes*60;$('status').textContent='';render();scheduleCloudSave();
 }
 function addMinutes(n){
-  remaining+=n*60;if(running)endAt+=n*60*1000;$('status').textContent=`当前段 +${n} 分钟`;render();scheduleCloudSave();
+  if(!isReady()||!plan.length)return;remaining+=n*60;if(running)endAt+=n*60*1000;$('status').textContent=`当前段 +${n} 分钟`;render();scheduleCloudSave();
 }
 $('startPause').onclick=()=>running?stop():start();
 $('prev').onclick=()=>moveToIndex(idx-1);
 $('next').onclick=()=>completeAndAdvance(false);
-$('resetCurrent').onclick=()=>{stop();remaining=plan[idx].minutes*60;render();scheduleCloudSave()};
+$('resetCurrent').onclick=()=>{if(!isReady()||!plan.length)return;stop();remaining=plan[idx].minutes*60;render();scheduleCloudSave()};
 $('plus1').onclick=()=>addMinutes(1);
 $('plus5').onclick=()=>addMinutes(5);
 $('finishEarly').onclick=()=>completeAndAdvance(running);
@@ -837,7 +1070,7 @@ renderRefGrid();
 
 $('loadPlan').onclick=()=>{
   try{
-    stop();plan=parsePlan(input.value);carryovers=[];localStorage.setItem('practicePlanText',input.value);
+    if(!isReady())return;const parsed=parsePlan(input.value);stop();plan=parsed;carryovers=[];saveSnapshot();
     idx=0;remaining=plan[0].minutes*60;$('status').textContent=`已载入 ${plan.length} 个分段`;render();scheduleCloudSave();
   }catch(e){alert(e.message)}
 };
@@ -864,7 +1097,7 @@ async function loginFromPastedSupabaseLink(raw){
   if(tokenHash){
     const {data,error}=await sb.auth.verifyOtp({
       token_hash:tokenHash,
-      type:'email'
+      type: ['email','signup','recovery','magiclink','invite'].includes(u.searchParams.get('type'))?u.searchParams.get('type'):'email'
     });
     if(error) throw error;
     if(data?.session) return data.session;
@@ -896,30 +1129,35 @@ async function loginFromPastedSupabaseLink(raw){
 
 
 $('passwordLogin').onclick=async()=>{
-  const email=$('loginEmail').value.trim();
-  const password=$('loginPassword').value;
-  if(!email||!password){
-    $('cloudStamp').textContent='请输入邮箱和密码。';
-    return;
-  }
-  const btn=$('passwordLogin');
-  btn.disabled=true;
-  $('cloudStamp').textContent='正在登录…';
+  const email=$('loginEmail').value.trim(),password=$('loginPassword').value;
+  if(!email||!password){$('authMessage').textContent='请输入邮箱和密码。';return;}
+  const btn=$('passwordLogin');btn.disabled=true;$('authMessage').textContent='正在登录…';
   try{
     const {data,error}=await sb.auth.signInWithPassword({email,password});
-    if(error) throw error;
-    currentUser=data.user||data.session?.user||null;
-    renderAuth();
+    if(error)throw error;
     $('loginPassword').value='';
-    $('cloudStamp').textContent='登录成功，正在载入云端数据…';
-    await loadCloudState();
-  }catch(e){
-    $('cloudStamp').textContent=`登录失败：${e.message||e}`;
-  }finally{
-    btn.disabled=false;
-  }
+    await switchAccount(data.user||data.session?.user||null);
+  }catch(e){$('authMessage').textContent=`登录失败：${e.message||e}`;}
+  finally{btn.disabled=false;}
 };
-
+$('signUp').onclick=async()=>{
+  const email=$('loginEmail').value.trim(),password=$('loginPassword').value;
+  if(!email||password.length<8){$('authMessage').textContent='注册需要邮箱和至少8位的密码。';return;}
+  const btn=$('signUp');btn.disabled=true;$('authMessage').textContent='正在注册…';
+  try{
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
+    if(error)throw error;
+    $('loginPassword').value='';
+    if(data.session){await switchAccount(data.session.user);}
+    else $('authMessage').textContent='已提交注册申请。请检查邮箱验证邮件，完成验证后登录。若该邮箱已有账号，请直接登录或重置密码。';
+  }catch(e){$('authMessage').textContent='注册失败：'+(e.message||e);}
+  finally{btn.disabled=false;}
+};
+$('resetPassword').onclick=async()=>{
+  const email=$('loginEmail').value.trim();if(!email){$('authMessage').textContent='请先填写邮箱。';return;}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  $('authMessage').textContent=error?'发送失败：'+error.message:'如该邮箱存在账号，会收到重置密码邮件。';
+};
 $('setPassword').onclick=async()=>{
   if(!currentUser){
     $('cloudStamp').textContent='请先登录。';
@@ -981,20 +1219,49 @@ $('loginWithPastedLink').onclick=async()=>{
   $('cloudStamp').textContent='正在在这台设备上验证登录链接…';
   try{
     const session=await loginFromPastedSupabaseLink(raw);
-    currentUser=session?.user||null;
-    renderAuth();
     $('pastedLoginLink').value='';
-    $('cloudStamp').textContent='登录成功，正在载入云端数据…';
-    await loadCloudState();
+    await switchAccount(session?.user||null);
   }catch(e){
     $('cloudStamp').textContent=`登录失败：${e.message||e}`;
   }finally{
     btn.disabled=false;
   }
 };
-$('signOut').onclick=async()=>{await sb.auth.signOut();currentUser=null;renderAuth();};
+$('signOut').onclick=async()=>{
+  if(pendingState||Object.keys(pendingOps).length){
+    if(!confirm('当前账号还有待同步修改。这些修改会保存在此设备的该账号空间，下次登录可继续同步。仍要退出吗？'))return;
+  }
+  const {error}=await sb.auth.signOut();
+  if(error){$('cloudStamp').textContent='退出失败：'+error.message;return;}
+  await switchAccount(null);
+};
 $('syncNow').onclick=()=>saveCloudState(true);
-$('reloadCloud').onclick=()=>loadCloudState();
+$('reloadCloud').onclick=async()=>{
+  if(pendingState||Object.keys(pendingOps).length){
+    alert('检测到未同步修改。请先导出备份。如果要放弃本地修改，请使用上方的冲突处理按钮。');return;
+  }
+  await loadCloudState();
+};
+$('discardConflict').onclick=async()=>{
+  if(!confirm('确定放弃本设备所有未同步的修改吗？建议你先使用「导出完整备份」，以免丢失数据。'))return;
+  await loadCloudState({discardPending:true});
+};
+$('overwriteConflict').onclick=async()=>{
+  if(!isReady()||!syncConflicted)return;
+  if(!confirm('这会用本设备的计划覆盖云端当前计划，其他设备的最新修改可能丢失。请先导出完整备份。确定继续？'))return;
+  if(!confirm('再次确认：以本设备内容覆盖云端的计划、进度和录音配置？'))return;
+  const epoch=accountEpoch;
+  const {data,error}=await sb.from('app_state').select('updated_at').eq('user_id',activeUserId).maybeSingle();
+  if(epoch!==accountEpoch)return;
+  if(error){$('cloudStamp').textContent='获取云端版本失败：'+error.message;return;}
+  cloudBaseUpdatedAt=data?.updated_at||null;
+  syncConflicted=false;pendingState=true;stateRevision++;
+  saveSnapshot();updateSyncDisplay();await saveCloudState(true);
+};
+$('openSettings').onclick=()=>{
+  $('settingsCard').open=true;
+  $('settingsCard').scrollIntoView({behavior:'smooth',block:'start'});
+};
 
 $('prevMonth').onclick=()=>{calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()-1,1);renderCalendar();};
 $('nextMonth').onclick=()=>{calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+1,1);renderCalendar();};
@@ -1006,7 +1273,7 @@ function buildSettlement(){
   $('settlementHeadline').textContent=`今天已推进 ${completed} / ${total} 个练习任务。剩余 ${remainingTasks.length} 项可以重新安排，不需要把原分钟数当成债务。`;
   $('settlementList').innerHTML=remainingTasks.length?remainingTasks.map(({x,i})=>`
     <div class="settle-row">
-      <div><b>${x.task}</b><div class="small">${x.group} · 原计划 ${x.minutes} 分钟</div></div>
+      <div><b>${escapeHtml(x.task)}</b><div class="small">${escapeHtml(x.group)} · 原计划 ${x.minutes} 分钟</div></div>
       <select data-settle-index="${i}">
         <option value="tomorrow">明天重新安排</option>
         <option value="backlog">放回任务池</option>
@@ -1042,28 +1309,85 @@ $('saveSettlement').onclick=async()=>{
   renderAchievements();renderCalendar();renderDayDetail(localDateStr());
 };
 
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(running)requestWakeLock();syncByClock()}});
-window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(running)requestWakeLock();syncByClock();
+    if(isReady()&&(pendingState||Object.keys(pendingOps).length)&&!syncConflicted)scheduleCloudSave(false);
+  }
+});
+window.addEventListener('online',()=>{if(isReady())scheduleCloudSave(false);});
+window.addEventListener('beforeunload',()=>{saveSnapshot();});
 
-const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.9';
-if(!standalone)$('installTip').classList.add('show');
-
-try{
-  plan=parsePlan(input.value);
-  const saved=JSON.parse(localStorage.getItem('practiceTimerState')||'null');
-  if(saved&&saved.planText===input.value){
-    if(Array.isArray(saved.plan)&&saved.plan.length)plan=saved.plan.map(x=>({...x,uid:x.uid||newId(),starAwarded:!!x.starAwarded,historyId:x.historyId||null,settledStatus:x.settledStatus||null}));
-    idx=Math.min(saved.idx||0,plan.length-1);remaining=Number(saved.remaining)||plan[idx].minutes*60;
-    if(saved.running&&saved.endAt){running=true;endAt=saved.endAt;requestWakeLock();tick=setInterval(syncByClock,250);syncByClock();}
-  }else remaining=plan[0].minutes*60;
-  render();
-}catch(e){
-  input.value=DEFAULT_PLAN;plan=parsePlan(DEFAULT_PLAN);remaining=plan[0].minutes*60;render();
+function downloadJson(payload,filename){
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
-renderAchievements();renderCalendar();initAuth();
-
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+function exportBackup(){
+  if(!isReady())return;
+  saveSnapshot();
+  const snapshot=safeJson(localStorage.getItem(scopedKey()),null);
+  downloadJson({format:'practice-timer-backup',schema:4,appVersion:'2.0.12',
+    exportedAt:new Date().toISOString(),userId:currentUser.id,userEmail:currentUser.email,
+    snapshot},`practice-timer-${localDateStr()}-backup.json`);
+  $('backupStatus').textContent='已导出当前账号的完整设备数据。若有未同步修改，备份中也会保留。';
+}
+$('importLegacy').onclick=async()=>{
+  if(!isReady())return;
+  const old=safeJson(localStorage.getItem('practiceHistory'),[]);
+  if(!Array.isArray(old)||!old.length){$('backupStatus').textContent='此设备没有找到旧版练习历史。旧版缓存不会被自动删除。';return;}
+  if(!confirm(`发现旧版 ${old.length} 条历史记录。请确认这些数据全部属于当前登录的账号 ${currentUser.email||''}。确认后只合并历史，不改动计划和参考录音。继续吗？`))return;
+  let count=0;
+  const existing=new Set(historyRows.map(h=>h.id));
+  for(const oldRow of old){
+    if(!oldRow||!oldRow.task_date||!oldRow.task_name)continue;
+    const row={...oldRow,id:oldRow.id||newId()};
+    if(existing.has(row.id))continue;
+    existing.add(row.id);historyRows.push(row);
+    pendingOps[row.id]={type:'upsert',row:structuredCloneSafe(row)};count++;
+  }
+  saveSnapshot();renderAchievements();renderCalendar();scheduleCloudSave(false);
+  $('backupStatus').textContent=`已合并 ${count} 条仅在旧版设备缓存中的历史（按记录 ID 去重）。旧版缓存已保留。`;
+};
+$('exportBackup').onclick=exportBackup;
+$('importBackup').onclick=()=>$('backupFile').click();
+$('backupFile').onchange=async e=>{
+  const file=e.target.files?.[0];if(!file||!isReady())return;
+  try{
+    const obj=JSON.parse(await file.text());
+    if(obj.format!=='practice-timer-backup'||obj.schema!==4||!obj.snapshot)throw new Error('不是兼容的练琴计时器 v2.0.12 备份。');
+    if(obj.userId!==activeUserId||obj.snapshot.userId!==activeUserId)throw new Error('这个文件属于其他账号，不能直接导入当前账号。');
+    if(!confirm('确定恢复这份备份吗？将替换本设备当前账号的计划与历史缓存。请先导出当前数据备份。'))return;
+    const epoch=accountEpoch;
+    // Verify remote version BEFORE any restored snapshot can be uploaded.
+    const {data:remote,error}=await sb.from('app_state').select('updated_at').eq('user_id',activeUserId).maybeSingle();
+    if(error)throw error;
+    if(epoch!==accountEpoch)return;
+    const s=obj.snapshot;
+    const base=remote?.updated_at||null;
+    const backupBase=s.cloudBaseUpdatedAt||null;
+    if(base!==backupBase){
+      s.syncConflicted=true;
+      $('backupStatus').textContent='备份已恢复到本设备，但云端版本不同，自动上传已暂停。请核对后决定是否使用云端版本。';
+    }else $('backupStatus').textContent='备份已恢复，本地修改会安全同步。';
+    // Imported records may not exist remotely; queue an idempotent upsert.
+    s.pendingOps={...s.pendingOps};
+    for(const row of s.historyRows||[])if(!s.pendingOps[row.id])s.pendingOps[row.id]={type:'upsert',row};
+    s.pendingState=true;
+    s.userId=activeUserId;
+    if(!safeStorageSet(scopedKey(),s))throw new Error('备份文件太大，设备存储空间不足。');
+    hydrateSnapshot(s);syncConflicted=!!s.syncConflicted;
+    stateRevision++;saveSnapshot();render();renderAchievements();renderCalendar();updateSyncDisplay();
+    if(!syncConflicted)scheduleCloudSave(false);
+  }catch(err){$('backupStatus').textContent='恢复失败：'+(err.message||err);}
+  finally{e.target.value='';}
+};
+// Preserve pre-2.0.10 global browser data untouched; never auto-attach them to a new user.
+const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.12';
+if(!standalone)$('installTip').classList.add('show');
+renderRefGrid();render();renderAchievements();renderCalendar();initAuth();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
 </html>
