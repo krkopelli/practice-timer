@@ -356,6 +356,9 @@ let historyRows = JSON.parse(localStorage.getItem('practiceHistory') || '[]');
 let currentUser = null;
 let cloudSaving = false;
 let cloudSaveTimer = null;
+// Prevent the same countdown boundary (or an accidental rapid double tap) from advancing twice.
+let transitionLock = false;
+let lastTransitionAt = 0;
 let lastCloudSavedAt = 0;
 let calendarCursor = new Date();
 
@@ -653,15 +656,22 @@ function removeCarryover(x){
   carryovers=carryovers.filter(c=>!(c.task===x.task&&c.group===x.group));
   localStorage.setItem('practiceCarryovers',JSON.stringify(carryovers));
 }
-async function markCarryover(){
-  if(!plan.length)return;
-  const x=plan[idx];
-  if(!x.rest){
-    x.completedAt=x.completedAt||new Date().toISOString();addCarryover(x);
-    await pushHistoryRow(makeHistoryRow(x,'completed_revisit',false,true));
-  }
-  if(running)advance(true);else moveToIndex(idx+1);
-  $('status').textContent='已标记“未完成，留待下一轮”';scheduleCloudSave();
+function markCarryover(){
+  // Move the UI forward immediately; the network write must never stall the timer.
+  if(!plan.length||transitionLock||Date.now()-lastTransitionAt<700)return;
+  transitionLock=true;
+  lastTransitionAt=Date.now();
+  try{
+    const x=plan[idx];
+    if(!x.rest){
+      x.completedAt=x.completedAt||new Date().toISOString();addCarryover(x);
+      const saving=pushHistoryRow(makeHistoryRow(x,'completed_revisit',false,true));
+      Promise.resolve(saving).catch(e=>{$('cloudStamp').textContent=`历史同步失败：${e.message||e}`;});
+    }
+    if(running)advance(true);else moveToIndex(idx+1);
+    $('status').textContent='已标记“未完成，留待下一轮”';
+    render();scheduleCloudSave();
+  }finally{transitionLock=false;}
 }
 async function toggleCompletedCarry(index){
   const x=plan[index];if(!x)return;
@@ -743,22 +753,42 @@ function stop(){
 }
 function advance(auto=true){
   beep();
-  if(idx<plan.length-1){idx++;remaining=plan[idx].minutes*60;$('status').textContent=`已切换：${plan[idx].task}`;if(auto&&running)endAt=Date.now()+remaining*1000;}
-  else{remaining=0;running=false;endAt=null;clearInterval(tick);tick=null;releaseWakeLock();$('status').textContent='今天的练习完成了 🎉';}
+  if(idx<plan.length-1){
+    idx++;
+    remaining=plan[idx].minutes*60;
+    $('status').textContent=`已切换：${plan[idx].task}`;
+    // A manual 'Next' must ALSO receive a fresh countdown; never reuse the old endAt.
+    if(running)endAt=Date.now()+remaining*1000;
+  }else{
+    remaining=0;running=false;endAt=null;
+    clearInterval(tick);tick=null;releaseWakeLock();
+    $('status').textContent='今天的练习完成了 🎉';
+  }
   scheduleCloudSave();
 }
-async function completeAndAdvance(auto=true){
-  await markTaskComplete(idx,{revisit:false,awardStar:true});advance(auto);render();
+function completeAndAdvance(auto=true){
+  if(!plan.length||transitionLock||Date.now()-lastTransitionAt<700)return;
+  transitionLock=true;
+  lastTransitionAt=Date.now();
+  try{
+    const finishedIndex=idx;
+    // Locally record the finished task right away. Upload may take seconds.
+    // Crucial: do NOT await a database request before moving to the next task.
+    const saving=markTaskComplete(finishedIndex,{revisit:false,awardStar:true});
+    advance(auto);
+    render();
+    Promise.resolve(saving).catch(e=>{
+      $('cloudStamp').textContent=`历史同步失败：${e.message||e}`;
+    });
+  }finally{transitionLock=false;}
 }
 function syncByClock(){
   if(!running||!endAt)return;
   const now=Date.now();
   if(now>=endAt){
-    const over=(now-endAt)/1000;
-    completeAndAdvance(true).then(()=>{
-      if(!running)return;
-      remaining=Math.max(0,remaining-over);endAt=Date.now()+remaining*1000;render();
-    });
+    // Exactly ONE next item per expiry, even if iOS suspends the tab or cloud writes are slow.
+    // Never carry the overdue time into the following task.
+    completeAndAdvance(true);
     return;
   }
   remaining=Math.max(0,(endAt-now)/1000);
@@ -1004,7 +1034,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.7';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.8';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
