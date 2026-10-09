@@ -80,7 +80,7 @@
       background:var(--card2);color:var(--text);border:1px solid var(--line);cursor:pointer
     }
     .toolrow a.disabled{opacity:.4;pointer-events:none}
-    .ref-grid{display:grid;grid-template-columns:70px 1fr;gap:8px 10px;align-items:center;margin-top:12px}
+    .ref-grid{display:grid;grid-template-columns:minmax(105px, 1fr) minmax(0, 1.7fr);gap:8px 10px;align-items:center;margin-top:12px}
     .ref-grid label{color:var(--muted);font-size:13px}
     .ref-grid input{
       min-width:0;width:100%;border-radius:11px;border:1px solid var(--line);background:#111114;color:var(--text);
@@ -235,8 +235,8 @@
 
   
   <details class="card">
-    <summary>七首伴奏 · 参考录音链接</summary>
-    <p class="note">把你认可的 YouTube / Bilibili / 网页录音链接贴在这里。保存后，只要当前任务名字里有“№1～№7”，上面的“当前曲目参考录音”按钮就会自动切到对应链接。</p>
+    <summary>🎵 曲名与参考录音链接</summary>
+    <p class="note">左侧填写曲名，右侧粘贴参考录音网址。№1～№7 是任务匹配编号：当前任务含对应编号时，顶部按钮会打开该曲目的链接。曲名可以随时改，旧链接会保留。</p>
     <div class="ref-grid" id="refGrid"></div>
     <div class="editor-buttons">
       <button id="saveRefs">保存参考链接</button>
@@ -604,44 +604,56 @@ function currentPieceNo(){
   const m=(plan[idx].task+" "+plan[idx].group).match(/№\s*([1-7])/);
   return m ? m[1] : null;
 }
+function refEntry(n){
+  const raw=refs[n];
+  if(typeof raw==='string') return {name:`№${n}`,url:raw};
+  return {name:(raw?.name||`№${n}`),url:(raw?.url||'')};
+}
 function renderReference(){
   const n=currentPieceNo(), btn=$('referenceBtn');
-  if(n && refs[n]){
-    btn.href=refs[n];
+  const entry=n?refEntry(n):null;
+  if(entry?.url){
+    btn.href=entry.url;
     btn.classList.remove('disabled');
-    btn.textContent=`▶︎ №${n} 参考录音`;
+    btn.textContent=`▶︎ ${entry.name} · 参考录音`;
   }else{
     btn.href='#';
     btn.classList.add('disabled');
-    btn.textContent=n?`▶︎ №${n} 尚未设置参考录音`:'▶︎ 当前任务无参考录音';
+    btn.textContent=n?`▶︎ ${entry.name} · 尚未设置录音`:'▶︎ 当前任务无参考录音';
   }
 }
 function renderRefGrid(){
   const grid=$('refGrid');
-  if(!grid) return;
+  if(!grid)return;
   grid.innerHTML='';
   for(let n=1;n<=7;n++){
-    const label=document.createElement('label');
-    label.textContent=`№${n}`;
-    const input=document.createElement('input');
-    input.type='url';
-    input.placeholder='https://...';
-    input.value=refs[n]||'';
-    input.dataset.piece=String(n);
-    grid.appendChild(label);
-    grid.appendChild(input);
+    const entry=refEntry(n);
+    const name=document.createElement('input');
+    name.type='text';name.placeholder=`№${n} · 曲名`;name.value=entry.name;
+    name.dataset.piece=String(n);name.dataset.field='name';
+    name.setAttribute('aria-label',`编号${n}曲名`);
+    const url=document.createElement('input');
+    url.type='url';url.placeholder='粘贴参考录音链接';url.value=entry.url;
+    url.dataset.piece=String(n);url.dataset.field='url';
+    url.setAttribute('aria-label',`编号${n}参考录音链接`);
+    grid.appendChild(name);grid.appendChild(url);
   }
 }
 function saveRefs(){
-  document.querySelectorAll('#refGrid input').forEach(inp=>{
-    const v=inp.value.trim();
-    if(v) refs[inp.dataset.piece]=v;
-    else delete refs[inp.dataset.piece];
-  });
+  const updated={...refs};
+  for(let n=1;n<=7;n++){
+    const name=document.querySelector(`#refGrid input[data-piece="${n}"][data-field="name"]`).value.trim()||`№${n}`;
+    const url=document.querySelector(`#refGrid input[data-piece="${n}"][data-field="url"]`).value.trim();
+    if(url){
+      try{const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol))throw new Error();}
+      catch(e){alert(`№${n} 的录音链接不是有效的 http(s) 地址，请检查。`);return;}
+    }
+    updated[n]={name,url};
+  }
+  refs=updated;
   localStorage.setItem('practiceRefs',JSON.stringify(refs));
-  $('status').textContent='参考录音链接已保存';
-  renderReference();
-  scheduleCloudSave();
+  $('status').textContent='曲名和参考录音链接已保存';
+  renderReference();scheduleCloudSave();
 }
 function isCarried(x){
   return carryovers.some(c=>c.task===x.task&&c.group===x.group);
@@ -1034,7 +1046,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',()=>{saveState();if(currentUser)saveCloudState(false);});
 
 const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.8';
+$('modeBadge').textContent=(standalone?'主屏幕 App':'网页')+' · v2.0.9';
 if(!standalone)$('installTip').classList.add('show');
 
 try{
